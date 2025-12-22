@@ -1,0 +1,794 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CanvasVM - Piet Language Virtual Machine</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --primary: #4F46E5;
+            --primary-dark: #4338CA;
+            --bg: #0F172A;
+            --bg-card: #1E293B;
+            --bg-input: #0F172A;
+            --text: #F1F5F9;
+            --text-secondary: #94A3B8;
+            --border: #334155;
+            --success: #10B981;
+            --error: #EF4444;
+            --warning: #F59E0B;
+            --terminal-bg: #000000;
+            --terminal-text: #00FF00;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 0 20px;
+        }
+
+        /* Header */
+        header {
+            background: var(--bg-card);
+            border-bottom: 1px solid var(--border);
+            padding: 20px 0;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            backdrop-filter: blur(10px);
+        }
+
+        .header-content {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .logo {
+            font-size: 24px;
+            font-weight: 700;
+            color: var(--primary);
+            text-decoration: none;
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 30px;
+        }
+
+        .nav-links a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            transition: color 0.2s;
+        }
+
+        .nav-links a:hover {
+            color: var(--text);
+        }
+
+        /* Hero */
+        .hero {
+            padding: 80px 0;
+            text-align: center;
+        }
+
+        .hero h1 {
+            font-size: 56px;
+            font-weight: 800;
+            margin-bottom: 20px;
+            background: linear-gradient(135deg, var(--primary) 0%, #8B5CF6 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .hero p {
+            font-size: 20px;
+            color: var(--text-secondary);
+            max-width: 600px;
+            margin: 0 auto 40px;
+        }
+
+        .badges {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            margin-bottom: 40px;
+        }
+
+        .badge {
+            background: var(--bg-card);
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 14px;
+            border: 1px solid var(--border);
+        }
+
+        .badge.success { border-color: var(--success); color: var(--success); }
+        .badge.warning { border-color: var(--warning); color: var(--warning); }
+
+        /* Main Section */
+        .main-section {
+            padding: 40px 0;
+        }
+
+        .playground {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 40px;
+        }
+
+        @media (max-width: 1024px) {
+            .playground {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 24px;
+        }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+        }
+
+        .card-title {
+            font-size: 18px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .icon {
+            width: 20px;
+            height: 20px;
+        }
+
+        /* Canvas Preview */
+        #canvas-preview {
+            border: 2px solid var(--border);
+            border-radius: 8px;
+            background: white;
+            image-rendering: pixelated;
+            width: 100%;
+            height: 300px;
+            object-fit: contain;
+        }
+
+        .upload-zone {
+            border: 2px dashed var(--border);
+            border-radius: 8px;
+            padding: 40px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s;
+            margin-bottom: 16px;
+        }
+
+        .upload-zone:hover {
+            border-color: var(--primary);
+            background: rgba(79, 70, 229, 0.1);
+        }
+
+        .upload-zone.dragover {
+            border-color: var(--primary);
+            background: rgba(79, 70, 229, 0.2);
+        }
+
+        /* Buttons */
+        .btn {
+            background: var(--primary);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.2s;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn:hover {
+            background: var(--primary-dark);
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .btn-secondary {
+            background: var(--bg-input);
+            border: 1px solid var(--border);
+        }
+
+        .btn-group {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        /* Bytecode Viewer */
+        .bytecode-list {
+            background: var(--bg-input);
+            border-radius: 8px;
+            padding: 16px;
+            max-height: 400px;
+            overflow-y: auto;
+            font-family: 'Fira Code', monospace;
+            font-size: 13px;
+        }
+
+        .bytecode-item {
+            display: flex;
+            gap: 12px;
+            padding: 8px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .bytecode-item:last-child {
+            border-bottom: none;
+        }
+
+        .bytecode-index {
+            color: var(--text-secondary);
+            min-width: 40px;
+        }
+
+        .bytecode-instr {
+            color: var(--warning);
+            font-weight: 600;
+            min-width: 100px;
+        }
+
+        .bytecode-value {
+            color: var(--success);
+        }
+
+        /* Terminal */
+        .terminal {
+            background: var(--terminal-bg);
+            border-radius: 8px;
+            padding: 0;
+            overflow: hidden;
+            font-family: 'Fira Code', monospace;
+            font-size: 13px;
+        }
+
+        .terminal-header {
+            background: #1a1a1a;
+            padding: 8px 16px;
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+
+        .terminal-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+        }
+
+        .terminal-dot.red { background: #FF5F56; }
+        .terminal-dot.yellow { background: #FFBD2E; }
+        .terminal-dot.green { background: #27C93F; }
+
+        .terminal-body {
+            padding: 16px;
+            min-height: 200px;
+            max-height: 400px;
+            overflow-y: auto;
+            color: var(--terminal-text);
+        }
+
+        .terminal-line {
+            margin-bottom: 4px;
+        }
+
+        .terminal-prompt {
+            color: #00FFFF;
+        }
+
+        .terminal-output {
+            color: var(--terminal-text);
+        }
+
+        .terminal-error {
+            color: var(--error);
+        }
+
+        .terminal-input-line {
+            display: flex;
+            gap: 8px;
+            margin-top: 8px;
+        }
+
+        .terminal-input {
+            background: transparent;
+            border: none;
+            color: var(--terminal-text);
+            font-family: 'Fira Code', monospace;
+            font-size: 13px;
+            flex: 1;
+            outline: none;
+        }
+
+        /* Stats */
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+            margin-top: 20px;
+        }
+
+        .stat-card {
+            background: var(--bg-input);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 16px;
+        }
+
+        .stat-label {
+            font-size: 12px;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .stat-value {
+            font-size: 24px;
+            font-weight: 700;
+            color: var(--text);
+            margin-top: 4px;
+        }
+
+        /* Loading */
+        .loading {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            border: 2px solid var(--border);
+            border-top-color: var(--primary);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* Samples */
+        .samples {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+
+        .sample-btn {
+            background: var(--bg-input);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 12px;
+            cursor: pointer;
+            text-align: center;
+            transition: all 0.2s;
+        }
+
+        .sample-btn:hover {
+            border-color: var(--primary);
+            background: rgba(79, 70, 229, 0.1);
+        }
+
+        .sample-btn.active {
+            border-color: var(--primary);
+            background: rgba(79, 70, 229, 0.2);
+        }
+
+        /* Footer */
+        footer {
+            text-align: center;
+            padding: 40px 0;
+            color: var(--text-secondary);
+            border-top: 1px solid var(--border);
+            margin-top: 80px;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="container">
+            <div class="header-content">
+                <a href="#" class="logo">🎨 CanvasVM</a>
+                <nav class="nav-links">
+                    <a href="#playground">Try it</a>
+                    <a href="https://github.com/joelibaceta/CanvasVM" target="_blank">GitHub</a>
+                    <a href="../README.md">Docs</a>
+                </nav>
+            </div>
+        </div>
+    </header>
+
+    <main>
+        <section class="hero">
+            <div class="container">
+                <h1>CanvasVM</h1>
+                <p>A blazing-fast WebAssembly virtual machine for the Piet esoteric programming language. Compile images to bytecode and execute with stack preview.</p>
+                
+                <div class="badges">
+                    <span class="badge success">✓ Bytecode Compiler</span>
+                    <span class="badge success">✓ Stack Preview</span>
+                    <span class="badge warning">⚡ 3-4x Faster</span>
+                </div>
+            </div>
+        </section>
+
+        <section id="playground" class="main-section">
+            <div class="container">
+                <div class="playground">
+                    <!-- Left: Upload & Canvas -->
+                    <div class="card">
+                        <div class="card-header">
+                            <div class="card-title">
+                                <span>🖼️</span> Piet Program
+                            </div>
+                            <div class="btn-group">
+                                <button class="btn btn-secondary" onclick="document.getElementById('file-input').click()">
+                                    Upload PNG
+                                </button>
+                            </div>
+                        </div>
+
+                        <input type="file" id="file-input" accept="image/png" style="display: none;">
+                        
+                        <div class="samples">
+                            <div class="sample-btn" data-sample="hello">Hello World</div>
+                            <div class="sample-btn" data-sample="fib">Fibonacci</div>
+                            <div class="sample-btn" data-sample="piet">Piet</div>
+                            <div class="sample-btn" data-sample="prime">Primes</div>
+                        </div>
+
+                        <div class="upload-zone" id="upload-zone">
+                            <p style="font-size: 14px; color: var(--text-secondary);">
+                                Drag & drop a PNG file here or click to browse
+                            </p>
+                        </div>
+
+                        <canvas id="canvas-preview"></canvas>
+
+                        <div class="btn-group" style="margin-top: 16px;">
+                            <button class="btn" id="compile-btn" disabled>
+                                <span>⚙️</span> Compile to Bytecode
+                            </button>
+                            <button class="btn" id="run-btn" disabled>
+                                <span>▶️</span> Run
+                            </button>
+                            <button class="btn btn-secondary" id="step-btn" disabled>
+                                <span>⏭️</span> Step
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Right: Bytecode -->
+                    <div class="card">
+                        <div class="card-header">
+                            <div class="card-title">
+                                <span>📋</span> Bytecode
+                            </div>
+                            <span id="bytecode-count" style="color: var(--text-secondary); font-size: 14px;">
+                                0 instructions
+                            </span>
+                        </div>
+
+                        <div class="bytecode-list" id="bytecode-list">
+                            <div style="color: var(--text-secondary); text-align: center; padding: 40px;">
+                                No bytecode yet. Upload a Piet program and click Compile.
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Terminal & Stats -->
+                <div class="playground">
+                    <div class="card">
+                        <div class="card-header">
+                            <div class="card-title">
+                                <span>💻</span> Terminal
+                            </div>
+                            <button class="btn btn-secondary" onclick="clearTerminal()">Clear</button>
+                        </div>
+
+                        <div class="terminal">
+                            <div class="terminal-header">
+                                <div class="terminal-dot red"></div>
+                                <div class="terminal-dot yellow"></div>
+                                <div class="terminal-dot green"></div>
+                                <span style="color: #666; font-size: 12px; margin-left: 10px;">canvas-vm</span>
+                            </div>
+                            <div class="terminal-body" id="terminal-output">
+                                <div class="terminal-line">
+                                    <span class="terminal-prompt">canvas-vm$</span> 
+                                    <span style="color: #666;">Ready. Upload a Piet program to start.</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="terminal-input-line" style="margin-top: 12px;">
+                            <span style="color: var(--text-secondary);">Input:</span>
+                            <input type="text" class="terminal-input" id="vm-input" placeholder="Type input and press Enter...">
+                        </div>
+                    </div>
+
+                    <div class="card">
+                        <div class="card-header">
+                            <div class="card-title">
+                                <span>📊</span> VM Stats
+                            </div>
+                        </div>
+
+                        <div class="stats">
+                            <div class="stat-card">
+                                <div class="stat-label">Stack Size</div>
+                                <div class="stat-value" id="stat-stack">0</div>
+                            </div>
+                            <div class="stat-card">
+                                <div class="stat-label">Steps</div>
+                                <div class="stat-value" id="stat-steps">0</div>
+                            </div>
+                            <div class="stat-card">
+                                <div class="stat-label">Position</div>
+                                <div class="stat-value" id="stat-position">(0, 0)</div>
+                            </div>
+                            <div class="stat-card">
+                                <div class="stat-label">Status</div>
+                                <div class="stat-value" id="stat-status" style="color: var(--text-secondary);">Idle</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <footer>
+        <div class="container">
+            <p>CanvasVM - Built with Rust 🦀 + WebAssembly</p>
+            <p style="margin-top: 8px; font-size: 14px;">
+                <a href="https://github.com/joelibaceta/CanvasVM" style="color: var(--primary); text-decoration: none;">GitHub</a> •
+                <a href="../README.md" style="color: var(--primary); text-decoration: none;">Documentation</a>
+            </p>
+        </div>
+    </footer>
+
+    <script type="module">
+        // State
+        let vm = null;
+        let program = null;
+        let currentImage = null;
+
+        // Terminal
+        function logToTerminal(message, type = 'output') {
+            const terminal = document.getElementById('terminal-output');
+            const line = document.createElement('div');
+            line.className = `terminal-line terminal-${type}`;
+            
+            if (type === 'prompt') {
+                line.innerHTML = `<span class="terminal-prompt">canvas-vm$</span> ${message}`;
+            } else {
+                line.textContent = message;
+            }
+            
+            terminal.appendChild(line);
+            terminal.scrollTop = terminal.scrollHeight;
+        }
+
+        window.clearTerminal = function() {
+            document.getElementById('terminal-output').innerHTML = `
+                <div class="terminal-line">
+                    <span class="terminal-prompt">canvas-vm$</span> 
+                    <span style="color: #666;">Terminal cleared.</span>
+                </div>
+            `;
+        };
+
+        // Update stats
+        function updateStats(stats) {
+            document.getElementById('stat-stack').textContent = stats.stackSize || 0;
+            document.getElementById('stat-steps').textContent = stats.steps || 0;
+            document.getElementById('stat-position').textContent = `(${stats.x || 0}, ${stats.y || 0})`;
+            document.getElementById('stat-status').textContent = stats.status || 'Idle';
+            
+            const statusEl = document.getElementById('stat-status');
+            statusEl.style.color = stats.status === 'Running' ? 'var(--success)' : 
+                                   stats.status === 'Halted' ? 'var(--error)' : 
+                                   'var(--text-secondary)';
+        }
+
+        // Display bytecode
+        function displayBytecode(instructions) {
+            const list = document.getElementById('bytecode-list');
+            const count = document.getElementById('bytecode-count');
+            
+            count.textContent = `${instructions.length} instructions`;
+            
+            if (instructions.length === 0) {
+                list.innerHTML = '<div style="color: var(--text-secondary); text-align: center; padding: 40px;">No instructions compiled.</div>';
+                return;
+            }
+            
+            list.innerHTML = instructions.map((instr, i) => {
+                let display = '';
+                if (typeof instr === 'object') {
+                    const [name, value] = Object.entries(instr)[0];
+                    display = `<span class="bytecode-instr">${name}</span><span class="bytecode-value">${value}</span>`;
+                } else {
+                    display = `<span class="bytecode-instr">${instr}</span>`;
+                }
+                
+                return `
+                    <div class="bytecode-item">
+                        <span class="bytecode-index">[${i}]</span>
+                        ${display}
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // Load sample
+        document.querySelectorAll('.sample-btn').forEach(btn => {
+            btn.addEventListener('click', async function() {
+                const sample = this.dataset.sample;
+                document.querySelectorAll('.sample-btn').forEach(b => b.classList.remove('active'));
+                this.classList.add('active');
+                
+                logToTerminal(`Loading sample: ${sample}...`, 'prompt');
+                
+                // En producción, cargaría desde ../tools/fixtures/samples/
+                // Por ahora, solo mock
+                logToTerminal(`Sample "${sample}" would be loaded from tools/fixtures/samples/`, 'output');
+                logToTerminal('⚠️  WASM module not loaded yet. Run: wasm-pack build --target web crates/canvas_wasm', 'error');
+            });
+        });
+
+        // File upload
+        const fileInput = document.getElementById('file-input');
+        const uploadZone = document.getElementById('upload-zone');
+        const canvas = document.getElementById('canvas-preview');
+        const ctx = canvas.getContext('2d');
+
+        uploadZone.addEventListener('click', () => fileInput.click());
+
+        uploadZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadZone.classList.add('dragover');
+        });
+
+        uploadZone.addEventListener('dragleave', () => {
+            uploadZone.classList.remove('dragover');
+        });
+
+        uploadZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadZone.classList.remove('dragover');
+            const file = e.dataTransfer.files[0];
+            if (file) loadImage(file);
+        });
+
+        fileInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file) loadImage(file);
+        });
+
+        function loadImage(file) {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const img = new Image();
+                img.onload = () => {
+                    canvas.width = img.width;
+                    canvas.height = img.height;
+                    ctx.drawImage(img, 0, 0);
+                    currentImage = ctx.getImageData(0, 0, img.width, img.height);
+                    
+                    document.getElementById('compile-btn').disabled = false;
+                    
+                    logToTerminal(`Loaded image: ${img.width}x${img.height} (${img.width * img.height} codels)`, 'prompt');
+                    updateStats({ status: 'Image loaded' });
+                };
+                img.src = e.target.result;
+            };
+            reader.readAsDataURL(file);
+        }
+
+        // Compile button
+        document.getElementById('compile-btn').addEventListener('click', () => {
+            if (!currentImage) return;
+            
+            logToTerminal('Compiling to bytecode...', 'prompt');
+            
+            // Mock compilation (en producción usaría WASM)
+            const mockBytecode = [
+                { Push: 5 },
+                { Push: 3 },
+                'Add',
+                'Duplicate',
+                'OutNumber',
+                'Halt'
+            ];
+            
+            displayBytecode(mockBytecode);
+            logToTerminal(`✓ Compiled ${mockBytecode.length} instructions`, 'output');
+            
+            document.getElementById('run-btn').disabled = false;
+            document.getElementById('step-btn').disabled = false;
+            
+            updateStats({ status: 'Compiled' });
+        });
+
+        // Run button
+        document.getElementById('run-btn').addEventListener('click', () => {
+            logToTerminal('Executing program...', 'prompt');
+            
+            // Mock execution
+            setTimeout(() => {
+                logToTerminal('Output: 8', 'output');
+                logToTerminal('✓ Program completed in 4 steps', 'output');
+                updateStats({ 
+                    stackSize: 1, 
+                    steps: 4, 
+                    x: 2, 
+                    y: 0, 
+                    status: 'Halted' 
+                });
+            }, 500);
+        });
+
+        // Step button
+        document.getElementById('step-btn').addEventListener('click', () => {
+            logToTerminal('Step: executing next instruction...', 'prompt');
+            updateStats({ 
+                stackSize: Math.floor(Math.random() * 5), 
+                steps: parseInt(document.getElementById('stat-steps').textContent) + 1,
+                status: 'Running'
+            });
+        });
+
+        // Input
+        document.getElementById('vm-input').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                const value = e.target.value;
+                logToTerminal(`Input: ${value}`, 'prompt');
+                e.target.value = '';
+                // Aquí se enviaría al VM
+            }
+        });
+
+        // Initial message
+        logToTerminal('Welcome to CanvasVM! 🎨', 'output');
+        logToTerminal('Upload a Piet program or select a sample to begin.', 'output');
+    </script>
+</body>
+</html>

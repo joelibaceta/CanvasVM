@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Canvas VM - Piet Language Runtime</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&amp;family=Noto+Sans:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#000000",
+                        "mondrian-red": "#e60000",
+                        "mondrian-yellow": "#ffde00",
+                        "mondrian-white": "#ffffff",
+                        "mondrian-blue": "#0000e6",
+                        "background-light": "#ffffff",
+                    },
+                    fontFamily: {
+                        "display": ["Space Grotesk", "sans-serif"],
+                        "body": ["Noto Sans", "sans-serif"],
+                    },
+                    borderRadius: { "DEFAULT": "0", "lg": "0", "xl": "0", "full": "9999px" },},
+            },
+        }
+    </script>
+<style>::-webkit-scrollbar {
+        width: 8px;
+        height: 8px;
+    }
+    ::-webkit-scrollbar-track {
+        background: #ffffff;
+        border-left: 2px solid black;
+    }
+    ::-webkit-scrollbar-thumb {
+        background: #000000;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+        background: #333;
+    }.toggle-checkbox:checked {
+        right: 0;
+        border-color: #000000;
+    }
+    .toggle-checkbox:checked + .toggle-label {
+        background-color: #000000;
+    }
+</style>
+</head>
+<body class="bg-black text-black font-display overflow-x-hidden selection:bg-mondrian-yellow selection:text-black">
+<div class="min-h-screen w-full grid grid-cols-1 lg:grid-cols-12 gap-2 bg-black border-4 border-black">
+<header class="col-span-1 lg:col-span-12 bg-white px-6 py-4 flex items-center justify-between">
+<div class="flex items-center gap-3">
+<div class="w-8 h-8 bg-mondrian-red flex items-center justify-center border border-black">
+<span class="material-symbols-outlined text-white text-[20px]">palette</span>
+</div>
+<h1 class="text-xl font-bold tracking-tight text-black">Canvas VM</h1>
+</div>
+<nav class="hidden md:flex items-center gap-8">
+<a class="text-sm font-bold text-gray-600 hover:text-black transition-colors uppercase tracking-wide" href="#">Documentation</a>
+<a class="text-sm font-bold text-gray-600 hover:text-black transition-colors uppercase tracking-wide" href="#">Examples</a>
+<a class="text-sm font-bold text-gray-600 hover:text-black transition-colors uppercase tracking-wide" href="#">GitHub</a>
+</nav>
+<button class="bg-black hover:bg-gray-800 text-white text-sm font-bold py-2 px-4 transition-colors flex items-center gap-2 shadow-[4px_4px_0px_0px_rgba(0,0,0,0.2)]">
+<span class="material-symbols-outlined text-[18px]">terminal</span>
+<span>CLI Tool</span>
+</button>
+</header>
+<div class="col-span-1 lg:col-span-8 bg-mondrian-blue p-8 lg:p-20 flex flex-col justify-center relative overflow-hidden group">
+<div class="relative z-10 max-w-2xl">
+<h2 class="text-6xl lg:text-8xl font-black tracking-tighter leading-[0.9] mb-6 text-white">
+            CANVAS
+        </h2>
+<p class="text-xl lg:text-2xl font-medium text-white mb-10 max-w-lg leading-relaxed">
+            Upload a painting. Run a program. <br/>
+<span class="text-blue-100 text-base mt-2 block font-normal font-body">The esoteric runtime for Piet enthusiasts designed for precision and aesthetics.</span>
+</p>
+<div class="flex flex-wrap gap-4">
+<button class="h-12 px-6 bg-white text-black hover:bg-gray-200 font-bold flex items-center gap-2 transition-transform active:scale-95 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
+<span>Try it now</span>
+<span class="material-symbols-outlined text-[20px]">arrow_forward</span>
+</button>
+<button class="h-12 px-6 bg-black text-white hover:bg-gray-800 font-bold transition-colors border-2 border-white shadow-[4px_4px_0px_0px_rgba(255,255,255,0.5)]">
+                See examples
+            </button>
+</div>
+</div>
+</div>
+<div class="col-span-1 lg:col-span-4 grid grid-rows-2 gap-2 bg-black h-full min-h-[400px]">
+<div class="bg-white relative overflow-hidden flex items-center justify-center group">
+<div class="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1550684848-fac1c5b4e853?q=80&amp;w=800&amp;auto=format&amp;fit=crop')] bg-cover bg-center opacity-80 grayscale mix-blend-multiply transition-transform duration-700 group-hover:scale-105"></div>
+<span class="relative z-10 bg-white text-black px-3 py-1 text-xs font-mono border-2 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]">hello_world.png</span>
+</div>
+<div class="grid grid-cols-2 gap-2 bg-black h-full">
+<div class="bg-mondrian-yellow flex flex-col justify-between p-6 text-black">
+<span class="material-symbols-outlined text-[32px]">speed</span>
+<span class="font-bold text-lg leading-none tracking-tight">Fast<br/>Execution</span>
+</div>
+<div class="bg-mondrian-red flex flex-col justify-between p-6 text-white">
+<span class="material-symbols-outlined text-[32px]">grid_on</span>
+<span class="font-bold text-lg leading-none tracking-tight">Pixel<br/>Perfect</span>
+</div>
+</div>
+</div>
+<div class="col-span-1 lg:col-span-4 bg-white p-8 flex flex-col gap-4 hover:bg-gray-50 transition-colors border-l-8 border-black">
+<div class="w-12 h-12 bg-black text-white flex items-center justify-center mb-2">
+<span class="material-symbols-outlined">bolt</span>
+</div>
+<h3 class="text-xl font-bold text-black">Instant runtime</h3>
+<p class="text-gray-600 text-sm leading-relaxed font-body">
+        Zero-setup environment running directly in WASM. Drag, drop, and watch your pixels execute logic instantly.
+    </p>
+</div>
+<div class="col-span-1 lg:col-span-4 bg-white p-8 flex flex-col gap-4 hover:bg-gray-50 transition-colors border-l-8 border-mondrian-yellow">
+<div class="w-12 h-12 bg-mondrian-yellow text-black border border-black flex items-center justify-center mb-2">
+<span class="material-symbols-outlined">animation</span>
+</div>
+<h3 class="text-xl font-bold text-black">See code move</h3>
+<p class="text-gray-600 text-sm leading-relaxed font-body">
+        Visual debugger highlights the current codel pointer (DP) and codel chooser (CC) as it traverses your artwork.
+    </p>
+</div>
+<div class="col-span-1 lg:col-span-4 bg-white p-8 flex flex-col gap-4 hover:bg-gray-50 transition-colors border-l-8 border-mondrian-red">
+<div class="w-12 h-12 bg-mondrian-red text-white border border-black flex items-center justify-center mb-2">
+<span class="material-symbols-outlined">public</span>
+</div>
+<h3 class="text-xl font-bold text-black">Built for the wild</h3>
+<p class="text-gray-600 text-sm leading-relaxed font-body">
+        Supports all major Piet specifications including npiet and PietDev. Handles complex color cycles gracefully.
+    </p>
+</div>
+<div class="col-span-1 lg:col-span-12 bg-mondrian-blue pt-12 pb-6 px-6 lg:px-12 flex flex-col lg:flex-row items-start lg:items-end justify-between gap-4">
+<div>
+<h2 class="text-3xl font-bold mb-2 text-white">Try Canvas in your browser</h2>
+<p class="text-blue-100 font-body">The sandbox environment is ready. No installation required.</p>
+</div>
+<div class="flex gap-2">
+<span class="px-2 py-1 bg-blue-900/50 border border-blue-400 text-xs text-blue-100 font-mono">v1.2.4-stable</span>
+<span class="px-2 py-1 bg-green-100 text-green-700 border border-green-200 text-xs font-mono flex items-center gap-1"><span class="w-1.5 h-1.5 rounded-full bg-green-500"></span> Online</span>
+</div>
+</div>
+<div class="col-span-1 lg:col-span-12 grid grid-cols-1 lg:grid-cols-12 gap-2 bg-black h-auto lg:h-[600px]">
+<div class="col-span-1 lg:col-span-3 bg-white flex flex-col h-full overflow-hidden">
+<div class="h-14 bg-mondrian-yellow border-b-4 border-black px-4 flex items-center justify-between flex-shrink-0">
+<h3 class="font-bold text-black uppercase tracking-wider text-sm flex items-center gap-2">
+<span class="material-symbols-outlined text-[20px]">terminal</span>
+            Bytecode
+        </h3>
+<span class="text-[10px] font-bold bg-black text-white px-1.5 py-0.5 font-mono">RO</span>
+</div>
+<div class="flex-1 overflow-y-auto bg-white relative">
+<table id="bytecode-table" class="w-full text-left text-xs font-mono border-collapse">
+<thead class="bg-gray-50 sticky top-0 z-10 shadow-sm text-gray-500">
+<tr>
+<th class="py-2 pl-4 w-12 border-b border-gray-200">#</th>
+<th class="py-2 border-b border-gray-200">Op</th>
+<th class="py-2 pr-4 text-right border-b border-gray-200">Val</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-gray-100">
+<tr>
+<td colspan="3" class="py-12 text-center text-gray-400 text-xs">
+No program loaded. Upload a Piet image to compile.
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<div class="col-span-1 lg:col-span-9 bg-white relative flex flex-col">
+<div class="h-14 border-b-4 border-black bg-white flex items-center justify-between px-4">
+<div class="flex items-center gap-2">
+<button class="w-9 h-9 flex items-center justify-center border border-transparent hover:border-black hover:bg-gray-100 text-black transition-all" title="Play">
+<span class="material-symbols-outlined">play_arrow</span>
+</button>
+<button class="w-9 h-9 flex items-center justify-center border border-transparent hover:border-black hover:bg-gray-100 text-black transition-all" title="Step">
+<span class="material-symbols-outlined">skip_next</span>
+</button>
+<div class="w-0.5 h-6 bg-black mx-1"></div>
+<button class="w-9 h-9 flex items-center justify-center border border-transparent hover:border-black hover:bg-gray-100 text-gray-600 hover:text-black transition-all" title="Snapshot">
+<span class="material-symbols-outlined text-[20px]">camera_alt</span>
+</button>
+<button class="w-9 h-9 flex items-center justify-center border border-transparent hover:border-black hover:bg-gray-100 text-gray-600 hover:text-black transition-all" title="Ink Mode">
+<span class="material-symbols-outlined text-[20px]">brush</span>
+</button>
+</div>
+<div class="flex items-center gap-4">
+<div class="flex items-center gap-2 border-l-2 border-black pl-3">
+<span class="text-xs font-mono text-gray-500">Stack:</span>
+<div id="stack-display" class="flex gap-1 items-center">
+<span class="text-xs font-mono text-gray-400">[ empty ]</span>
+</div>
+</div>
+<span class="text-xs font-mono text-gray-500">DP: <span class="text-black font-bold">RIGHT</span> CC: <span class="text-mondrian-red font-bold">LEFT</span></span>
+</div>
+</div>
+<div class="flex-1 flex items-center justify-center p-8 bg-[radial-gradient(#ddd_1px,transparent_1px)] [background-size:20px_20px]">
+<canvas id="canvas-preview" style="display:none; image-rendering: pixelated; max-width: 100%; max-height: 100%; object-fit: contain;" class="border-2 border-black shadow-lg"></canvas>
+<div id="upload-area" class="w-full max-w-lg border-2 border-dashed border-gray-400 p-12 flex flex-col items-center justify-center gap-6 bg-white transition-all hover:border-black hover:shadow-lg group cursor-pointer">
+<div class="w-20 h-20 bg-gray-50 flex items-center justify-center group-hover:bg-mondrian-yellow transition-colors border border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
+<span class="material-symbols-outlined text-4xl text-black">upload_file</span>
+</div>
+<div class="text-center">
+<p class="text-lg font-bold text-black">Upload Program</p>
+<p class="text-sm text-gray-500 mt-1">Drag and drop your .png or .bmp Piet program here</p>
+</div>
+<input type="file" id="file-input" accept=".png,.bmp" style="display: none;">
+<button onclick="document.getElementById('file-input').click()" class="bg-black hover:bg-gray-800 text-white text-sm font-bold py-2.5 px-6 transition-colors shadow-lg">
+                    Upload (PNG/BMP)
+                </button>
+</div>
+</div>
+<div id="terminal-output" class="h-32 border-t-4 border-black bg-white p-3 font-mono text-xs overflow-y-auto">
+<div class="text-gray-400 mb-1">Canvas VM initialized. Ready for input.</div>
+<div class="text-black font-bold">&gt; _</div>
+</div>
+</div>
+</div>
+<footer class="col-span-1 lg:col-span-12 bg-mondrian-yellow p-12 flex flex-col items-center justify-center text-center relative overflow-hidden">
+<div class="absolute top-0 left-0 w-full h-2 bg-black"></div>
+<h2 class="text-black text-4xl lg:text-5xl font-black uppercase tracking-widest mb-4">
+        Compile art. <br/>
+        Execute code.
+    </h2>
+<div class="flex gap-6 mt-4">
+<a class="text-black font-bold border-b-2 border-black hover:opacity-70 transition-opacity" href="#">Privacy</a>
+<a class="text-black font-bold border-b-2 border-black hover:opacity-70 transition-opacity" href="#">Terms</a>
+<a class="text-black font-bold border-b-2 border-black hover:opacity-70 transition-opacity" href="#">Twitter</a>
+</div>
+<p class="text-black/60 text-xs font-mono mt-12">
+        © 2023 Canvas VM. Inspired by Piet Mondrian.
+    </p>
+</footer>
+</div>
+<script type="module" src="script.js"></script>
+</body></html>

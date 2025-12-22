@@ -1,0 +1,33 @@
+{
+  "name": "@canvasvm/wasm",
+  "version": "0.1.0",
+  "description": "WebAssembly binding for Piet VM - A virtual machine for the esoteric Piet programming language",
+  "main": "pkg/canvas_wasm.js",
+  "types": "pkg/canvas_wasm.d.ts",
+  "scripts": {
+    "build": "./tools/scripts/build-wasm.sh web",
+    "build:nodejs": "./tools/scripts/build-wasm.sh nodejs",
+    "build:bundler": "./tools/scripts/build-wasm.sh bundler",
+    "test": "cargo test --workspace",
+    "test:wasm": "wasm-pack test --headless --firefox crates/canvas_wasm"
+  },
+  "keywords": [
+    "piet",
+    "esoteric",
+    "programming-language",
+    "webassembly",
+    "wasm",
+    "vm",
+    "virtual-machine"
+  ],
+  "author": "Joel Ibaceta",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/joelibaceta/CanvasVM.git"
+  },
+  "files": [
+    "pkg",
+    "README.md"
+  ]
+}
