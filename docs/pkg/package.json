@@ -1,0 +1,15 @@
+{
+  "name": "canvas_wasm",
+  "type": "module",
+  "version": "0.1.0",
+  "files": [
+    "canvas_wasm_bg.wasm",
+    "canvas_wasm.js",
+    "canvas_wasm.d.ts"
+  ],
+  "main": "canvas_wasm.js",
+  "types": "canvas_wasm.d.ts",
+  "sideEffects": [
+    "./snippets/*"
+  ]
+}
