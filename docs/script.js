@@ -268,9 +268,8 @@ if (playButton) {
                     
                     if (snapshot.halted || step >= maxSteps) {
                         const output = vm.ink_string();
-                        if (output) {
-                            logToTerminal(`Output: ${output}`, 'program-output');
-                        }
+                        console.log('ink_string returned:', output, 'type:', typeof output);
+                        logToTerminal(`Output: ${output || '(empty)'}`, 'program-output');
                         logToTerminal(`✓ Program completed in ${step} steps`, 'output');
                         return;
                     }
@@ -286,9 +285,8 @@ if (playButton) {
                         const snapshot = vm.snapshot();
                         if (snapshot.halted) {
                             const output = vm.ink_string();
-                            if (output) {
-                                logToTerminal(`Output: ${output}`, 'program-output');
-                            }
+                            console.log('ink_string (error path):', output);
+                            logToTerminal(`Output: ${output || '(empty)'}`, 'program-output');
                             logToTerminal(`✓ Program completed in ${step} steps`, 'output');
                             return;
                         }
