@@ -1,0 +1,20 @@
+[package]
+name = "canvas_codegen"
+version = "0.1.0"
+edition = "2021"
+description = "WASM code generator for Piet bytecode - compiles to native WebAssembly"
+
+[dependencies]
+# Core VM types (bytecode, instructions)
+canvas_vm = { path = "../canvas_vm" }
+
+# WASM binary encoding (Mozilla's official encoder)
+wasm-encoder = "0.220"
+
+# Serialization for metadata
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+
+[dev-dependencies]
+# WASM validation
+wasmparser = "0.220"

@@ -1,6 +1,7 @@
 [workspace]
 members = [
     "crates/canvas_codec",
+    "crates/canvas_codegen",
     "crates/canvas_vm",
     "crates/canvas_wasm",
 ]

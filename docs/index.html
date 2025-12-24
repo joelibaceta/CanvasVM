@@ -3,6 +3,8 @@
 <meta charset="utf-8"/>
 <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
 <title>Canvas VM - Piet Language Runtime</title>
+<!-- Favicon: Yellow lightning bolt -->
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' fill='white' stroke='black' stroke-width='2'/><path d='M18 4L8 18h6l-2 10 10-14h-6z' fill='%23ffde00' stroke='black' stroke-width='1.5'/></svg>">
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&amp;family=Noto+Sans:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
 <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
 <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
@@ -45,6 +47,37 @@
     }
     .toggle-checkbox:checked + .toggle-label {
         background-color: #000000;
+    }
+    
+    /* Running state effects */
+    .running-overlay {
+        position: relative;
+    }
+    .running-overlay::after {
+        content: '';
+        position: absolute;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.4);
+        pointer-events: none;
+        z-index: 20;
+        animation: pulse-overlay 1s ease-in-out infinite;
+    }
+    .running-overlay.bytecode-panel::after {
+        background: rgba(0, 0, 0, 0.3);
+    }
+    @keyframes pulse-overlay {
+        0%, 100% { opacity: 0.4; }
+        50% { opacity: 0.6; }
+    }
+    
+    /* Running indicator on canvas */
+    .canvas-running {
+        filter: grayscale(70%) brightness(0.8);
+        transition: filter 0.3s ease;
+    }
+    .canvas-idle {
+        filter: none;
+        transition: filter 0.3s ease;
     }
 </style>
 </head>
@@ -174,16 +207,43 @@ No program loaded. Upload a Piet image to compile.
 <button class="w-9 h-9 flex items-center justify-center border border-transparent hover:border-black hover:bg-gray-100 text-black transition-all" title="Play">
 <span class="material-symbols-outlined">play_arrow</span>
 </button>
+<button id="run-fast-btn" class="w-9 h-9 flex items-center justify-center border border-transparent hover:border-black hover:bg-gray-100 text-yellow-500 transition-all" title="Run Fast (Native)">
+<span class="material-symbols-outlined">bolt</span>
+</button>
 <button class="w-9 h-9 flex items-center justify-center border border-transparent hover:border-black hover:bg-gray-100 text-black transition-all" title="Step">
 <span class="material-symbols-outlined">skip_next</span>
 </button>
+<button id="reset-btn" class="w-9 h-9 flex items-center justify-center border border-transparent hover:border-black hover:bg-gray-100 text-gray-600 hover:text-black transition-all" title="Reset">
+<span class="material-symbols-outlined">replay</span>
+</button>
 <div class="w-0.5 h-6 bg-black mx-1"></div>
-<button class="w-9 h-9 flex items-center justify-center border border-transparent hover:border-black hover:bg-gray-100 text-gray-600 hover:text-black transition-all" title="Snapshot">
-<span class="material-symbols-outlined text-[20px]">camera_alt</span>
-</button>
-<button class="w-9 h-9 flex items-center justify-center border border-transparent hover:border-black hover:bg-gray-100 text-gray-600 hover:text-black transition-all" title="Ink Mode">
-<span class="material-symbols-outlined text-[20px]">brush</span>
-</button>
+<div class="flex items-center gap-1.5 bg-gray-100 px-2 py-1 border border-gray-300">
+<span class="material-symbols-outlined text-[16px] text-gray-500">grid_view</span>
+<select id="codel-size-select" class="bg-transparent text-xs font-mono font-medium text-gray-700 focus:outline-none cursor-pointer appearance-none pr-4" style="background-image: url('data:image/svg+xml;charset=US-ASCII,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%2212%22 height=%2212%22 viewBox=%220 0 12 12%22><path fill=%22%23666%22 d=%22M3 4.5L6 8l3-3.5H3z%22/></svg>'); background-repeat: no-repeat; background-position: right 0 center;">
+<option value="0">Auto</option>
+<option value="1">1px</option>
+<option value="2">2px</option>
+<option value="4">4px</option>
+<option value="5">5px</option>
+<option value="8">8px</option>
+<option value="10">10px</option>
+<option value="16">16px</option>
+<option value="20">20px</option>
+<option value="25">25px</option>
+<option value="32">32px</option>
+</select>
+</div>
+<!-- Watchdog Control -->
+<div class="flex items-center gap-1.5 bg-gray-100 px-2 py-1 border border-gray-300" title="Watchdog: Maximum steps before timeout">
+<span class="material-symbols-outlined text-[16px] text-gray-500">timer</span>
+<select id="watchdog-select" class="bg-transparent text-xs font-mono font-medium text-gray-700 focus:outline-none cursor-pointer appearance-none pr-4" style="background-image: url('data:image/svg+xml;charset=US-ASCII,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%2212%22 height=%2212%22 viewBox=%220 0 12 12%22><path fill=%22%23666%22 d=%22M3 4.5L6 8l3-3.5H3z%22/></svg>'); background-repeat: no-repeat; background-position: right 0 center;">
+<option value="1000">1K</option>
+<option value="10000">10K</option>
+<option value="100000" selected>100K</option>
+<option value="1000000">1M</option>
+<option value="0">∞</option>
+</select>
+</div>
 </div>
 <div class="flex items-center gap-4">
 <div class="flex items-center gap-2 border-l-2 border-black pl-3">
@@ -192,7 +252,17 @@ No program loaded. Upload a Piet image to compile.
 <span class="text-xs font-mono text-gray-400">[ empty ]</span>
 </div>
 </div>
-<span class="text-xs font-mono text-gray-500">DP: <span class="text-black font-bold">RIGHT</span> CC: <span class="text-mondrian-red font-bold">LEFT</span></span>
+<span class="text-xs font-mono text-gray-500">DP: <span id="dp-display" class="text-black font-bold">RIGHT</span> CC: <span id="cc-display" class="text-mondrian-red font-bold">LEFT</span></span>
+</div>
+</div>
+<!-- File Tab Bar -->
+<div id="file-tab-bar" class="h-9 bg-gray-200 border-b border-gray-300 flex items-end px-1" style="display: none;">
+<div id="file-tab" class="h-8 px-3 bg-white border border-b-0 border-gray-300 flex items-center gap-2 relative top-px">
+<span class="material-symbols-outlined text-[14px] text-gray-500">image</span>
+<span id="file-tab-name" class="text-xs font-mono text-gray-700 max-w-[200px] truncate">untitled.png</span>
+<button id="close-tab-btn" class="w-5 h-5 flex items-center justify-center rounded hover:bg-gray-200 text-gray-400 hover:text-gray-700 transition-colors ml-1" title="Close">
+<span class="material-symbols-outlined text-[16px]">close</span>
+</button>
 </div>
 </div>
 <div class="flex-1 flex items-center justify-center p-8 bg-[radial-gradient(#ddd_1px,transparent_1px)] [background-size:20px_20px]">
@@ -211,12 +281,75 @@ No program loaded. Upload a Piet image to compile.
                 </button>
 </div>
 </div>
+<!-- Status Bar -->
+<div id="status-bar" class="h-8 border-t-2 border-black bg-gray-100 px-4 flex items-center justify-between text-xs font-mono">
+<div class="flex items-center gap-4">
+<div class="flex items-center gap-2">
+<span id="status-indicator" class="w-2 h-2 rounded-full bg-gray-400"></span>
+<span id="status-text" class="text-gray-600">Ready</span>
+</div>
+<div class="h-4 w-px bg-gray-300"></div>
+<div class="flex items-center gap-1">
+<span class="text-gray-500">Steps:</span>
+<span id="steps-count" class="font-bold text-black">0</span>
+</div>
+<div class="h-4 w-px bg-gray-300"></div>
+<div class="flex items-center gap-1">
+<span class="text-gray-500">Time:</span>
+<span id="exec-time" class="font-bold text-black">0.00ms</span>
+</div>
+<div class="h-4 w-px bg-gray-300"></div>
+<div class="flex items-center gap-1">
+<span class="text-gray-500">Speed:</span>
+<span id="exec-speed" class="font-bold text-green-600">-</span>
+</div>
+</div>
+<div class="flex items-center gap-4">
+<div class="flex items-center gap-1">
+<span class="text-gray-500">IP:</span>
+<span id="ip-display" class="font-bold text-black">0x00</span>
+</div>
+<div class="h-4 w-px bg-gray-300"></div>
+<div class="flex items-center gap-1">
+<span class="text-gray-500">Pos:</span>
+<span id="pos-display" class="font-bold text-black">(0,0)</span>
+</div>
+<div class="h-4 w-px bg-gray-300"></div>
+<span id="mode-badge" class="px-2 py-0.5 bg-gray-200 text-gray-600 text-[10px] font-bold">IDLE</span>
+</div>
+</div>
 <div id="terminal-output" class="h-32 border-t-4 border-black bg-white p-3 font-mono text-xs overflow-y-auto">
 <div class="text-gray-400 mb-1">Canvas VM initialized. Ready for input.</div>
 <div class="text-black font-bold">&gt; _</div>
 </div>
 </div>
 </div>
+
+<!-- Input Modal -->
+<div id="input-modal" class="fixed inset-0 bg-black/50 flex items-center justify-center" style="display: none; z-index: 9999;">
+<div class="bg-white border-4 border-black shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] p-6 w-80">
+<div class="flex items-center gap-3 mb-4">
+<div id="input-modal-icon" class="w-10 h-10 bg-mondrian-blue flex items-center justify-center">
+<span class="material-symbols-outlined text-white">input</span>
+</div>
+<div>
+<h3 class="font-bold text-black text-lg">Input Required</h3>
+<p id="input-modal-prompt" class="text-gray-600 text-sm">Enter a number</p>
+</div>
+</div>
+<input type="text" id="input-modal-field" class="w-full h-12 px-4 text-lg font-mono border-2 border-black focus:outline-none focus:ring-2 focus:ring-mondrian-blue" placeholder="" maxlength="20" autofocus>
+<div class="flex gap-2 mt-4">
+<button id="input-modal-cancel" class="flex-1 h-10 bg-gray-200 hover:bg-gray-300 text-black font-bold transition-colors">
+Cancel
+</button>
+<button id="input-modal-submit" class="flex-1 h-10 bg-black hover:bg-gray-800 text-white font-bold transition-colors">
+Submit
+</button>
+</div>
+<p id="input-modal-error" class="text-red-600 text-xs mt-2 hidden">Invalid input</p>
+</div>
+</div>
+
 <footer class="col-span-1 lg:col-span-12 bg-mondrian-yellow p-12 flex flex-col items-center justify-center text-center relative overflow-hidden">
 <div class="absolute top-0 left-0 w-full h-2 bg-black"></div>
 <h2 class="text-black text-4xl lg:text-5xl font-black uppercase tracking-widest mb-4">

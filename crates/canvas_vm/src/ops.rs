@@ -128,29 +128,40 @@ impl PietColor {
 }
 
 /// Calculates the operation resulting from hue and lightness change
+/// Based on the official Piet specification:
+/// https://www.dangermouse.net/esoteric/piet.html
+///
+/// | Light\Hue | 0      | 1        | 2        | 3        | 4          | 5          |
+/// |-----------|--------|----------|----------|----------|------------|------------|
+/// | 0         | -      | push     | pop      | add      | subtract   | multiply   |
+/// | 1         | divide | mod      | not      | greater  | pointer    | switch     |
+/// | 2         | dup    | roll     | in(num)  | in(char) | out(num)   | out(char)  |
 pub fn get_operation(hue_change: i8, lightness_change: i8) -> Option<Operation> {
-    // Normalize changes to [0, 2] range
+    // Normalize changes to [0, 5] for hue and [0, 2] for lightness
     let hue = ((hue_change % 6 + 6) % 6) as u8;
     let light = ((lightness_change % 3 + 3) % 3) as u8;
     
     match (hue, light) {
-        (0, 0) => None,           // No change
-        (0, 1) => Some(Operation::Push),
-        (0, 2) => Some(Operation::Pop),
-        (1, 0) => Some(Operation::Add),
-        (1, 1) => Some(Operation::Subtract),
-        (1, 2) => Some(Operation::Multiply),
-        (2, 0) => Some(Operation::Divide),
-        (2, 1) => Some(Operation::Mod),
-        (2, 2) => Some(Operation::Not),
-        (3, 0) => Some(Operation::Greater),
-        (3, 1) => Some(Operation::Pointer),
-        (3, 2) => Some(Operation::Switch),
-        (4, 0) => Some(Operation::Duplicate),
-        (4, 1) => Some(Operation::Roll),
-        (4, 2) => Some(Operation::InNumber),
-        (5, 0) => Some(Operation::InChar),
-        (5, 1) => Some(Operation::OutNumber),
+        // Lightness 0
+        (0, 0) => None,                      // No change = no operation
+        (1, 0) => Some(Operation::Push),
+        (2, 0) => Some(Operation::Pop),
+        (3, 0) => Some(Operation::Add),
+        (4, 0) => Some(Operation::Subtract),
+        (5, 0) => Some(Operation::Multiply),
+        // Lightness 1
+        (0, 1) => Some(Operation::Divide),
+        (1, 1) => Some(Operation::Mod),
+        (2, 1) => Some(Operation::Not),
+        (3, 1) => Some(Operation::Greater),
+        (4, 1) => Some(Operation::Pointer),
+        (5, 1) => Some(Operation::Switch),
+        // Lightness 2
+        (0, 2) => Some(Operation::Duplicate),
+        (1, 2) => Some(Operation::Roll),
+        (2, 2) => Some(Operation::InNumber),
+        (3, 2) => Some(Operation::InChar),
+        (4, 2) => Some(Operation::OutNumber),
         (5, 2) => Some(Operation::OutChar),
         _ => None,
     }

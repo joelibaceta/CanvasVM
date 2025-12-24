@@ -61,6 +61,21 @@ impl Grid {
         Self::from_rgba_with_codel_size(width, height, rgba_data, None)
     }
     
+    /// Detects the codel size from RGBA data without creating the grid
+    /// Returns 1 if detection is uncertain
+    pub fn detect_codel_size_from_rgba(width: usize, height: usize, rgba_data: &[u8]) -> usize {
+        if rgba_data.len() != width * height * 4 {
+            return 1;
+        }
+        
+        let get_pixel = |x: usize, y: usize| -> (u8, u8, u8) {
+            let idx = (y * width + x) * 4;
+            (rgba_data[idx], rgba_data[idx + 1], rgba_data[idx + 2])
+        };
+        
+        Self::detect_codel_size(width, height, &get_pixel)
+    }
+    
     /// Creates a grid from RGBA data with optional codel size
     /// If codel_size is None, it will be auto-detected
     pub fn from_rgba_with_codel_size(
@@ -116,33 +131,54 @@ impl Grid {
     }
     
     /// Detects the codel size by finding the GCD of color run lengths
+    /// Uses multiple scan lines for more accurate detection
     fn detect_codel_size<F>(width: usize, height: usize, get_pixel: &F) -> usize 
     where F: Fn(usize, usize) -> (u8, u8, u8)
     {
         let mut run_lengths = Vec::new();
         
-        // Scan first row for horizontal runs
-        let mut x = 0;
-        while x < width {
-            let color = get_pixel(x, 0);
-            let mut run_len = 1;
-            while x + run_len < width && get_pixel(x + run_len, 0) == color {
-                run_len += 1;
+        // Scan multiple rows for horizontal runs (first, middle, last)
+        let rows_to_scan = [0, height / 2, height.saturating_sub(1)];
+        for &row in &rows_to_scan {
+            if row >= height {
+                continue;
             }
-            run_lengths.push(run_len);
-            x += run_len;
+            let mut x = 0;
+            while x < width {
+                let color = get_pixel(x, row);
+                let mut run_len = 1;
+                while x + run_len < width && get_pixel(x + run_len, row) == color {
+                    run_len += 1;
+                }
+                run_lengths.push(run_len);
+                x += run_len;
+            }
         }
         
-        // Scan first column for vertical runs
-        let mut y = 0;
-        while y < height {
-            let color = get_pixel(0, y);
-            let mut run_len = 1;
-            while y + run_len < height && get_pixel(0, y + run_len) == color {
-                run_len += 1;
+        // Scan multiple columns for vertical runs (first, middle, last)
+        let cols_to_scan = [0, width / 2, width.saturating_sub(1)];
+        for &col in &cols_to_scan {
+            if col >= width {
+                continue;
             }
-            run_lengths.push(run_len);
-            y += run_len;
+            let mut y = 0;
+            while y < height {
+                let color = get_pixel(col, y);
+                let mut run_len = 1;
+                while y + run_len < height && get_pixel(col, y + run_len) == color {
+                    run_len += 1;
+                }
+                run_lengths.push(run_len);
+                y += run_len;
+            }
+        }
+        
+        // Also check for uniform color blocks by sampling corners
+        // If we detect that all corners of potential codels have the same color, 
+        // that confirms the codel size
+        let candidate_sizes = Self::find_candidate_codel_sizes(width, height, get_pixel);
+        for size in candidate_sizes {
+            run_lengths.push(size);
         }
         
         // Find GCD of all run lengths
@@ -159,6 +195,49 @@ impl Grid {
         }
         
         result.max(1)
+    }
+    
+    /// Find candidate codel sizes by checking if the image can be evenly divided
+    /// into uniform color blocks of a given size
+    fn find_candidate_codel_sizes<F>(width: usize, height: usize, get_pixel: &F) -> Vec<usize>
+    where F: Fn(usize, usize) -> (u8, u8, u8)
+    {
+        let mut candidates = Vec::new();
+        
+        // Common codel sizes to check
+        let sizes_to_check = [2, 4, 5, 8, 10, 16, 20, 25, 32];
+        
+        for &size in &sizes_to_check {
+            if width % size != 0 || height % size != 0 {
+                continue;
+            }
+            
+            // Check if all blocks at this size are uniform color
+            let mut is_valid = true;
+            'outer: for cy in 0..(height / size) {
+                for cx in 0..(width / size) {
+                    let base_x = cx * size;
+                    let base_y = cy * size;
+                    let base_color = get_pixel(base_x, base_y);
+                    
+                    // Check all pixels in this block
+                    for dy in 0..size {
+                        for dx in 0..size {
+                            if get_pixel(base_x + dx, base_y + dy) != base_color {
+                                is_valid = false;
+                                break 'outer;
+                            }
+                        }
+                    }
+                }
+            }
+            
+            if is_valid {
+                candidates.push(size);
+            }
+        }
+        
+        candidates
     }
     
     /// Greatest common divisor
@@ -350,18 +429,9 @@ impl Grid {
 
         let exit = positions.first().copied()?;
         
-        // Intentar moverse desde la salida en la dirección DP
+        // Retornar la posición siguiente en dirección DP (incluso si es negro)
+        // La VM decidirá qué hacer con el color
         exit.step(dp, self.width, self.height)
-            .and_then(|next_pos| {
-                // Solo retornar si no es negro
-                self.get(next_pos).and_then(|color| {
-                    if !color.is_black() {
-                        Some(next_pos)
-                    } else {
-                        None
-                    }
-                })
-            })
     }
 
     /// Encuentra todos los codels contiguos del mismo color (legacy, para tests)
@@ -518,5 +588,73 @@ mod tests {
         // DP=Right, CC=Left debería dar (1, 0) - el más a la derecha y arriba
         let exit = grid.find_exit(&block, Direction::Right, CodelChooser::Left);
         assert_eq!(exit, Some(Position::new(1, 0)));
+    }
+
+    #[test]
+    fn test_detect_codel_size_1px() {
+        // 3x3 imagen con codel size 1 (cada pixel es un codel)
+        let rgba = vec![
+            255, 0, 0, 255,  0, 255, 0, 255,  0, 0, 255, 255,
+            255, 255, 0, 255,  255, 255, 255, 255,  0, 0, 0, 255,
+            0, 0, 0, 255,  255, 0, 0, 255,  0, 255, 0, 255,
+        ];
+        let cs = Grid::detect_codel_size_from_rgba(3, 3, &rgba);
+        assert_eq!(cs, 1);
+    }
+
+    #[test]
+    fn test_detect_codel_size_2px() {
+        // 4x4 imagen donde cada codel es 2x2 pixels
+        // Codel grid: 2x2
+        // [Red,  Blue ]
+        // [Green, Yellow]
+        let rgba = vec![
+            // Row 0 (2 pixels height)
+            255, 0, 0, 255,  255, 0, 0, 255,  0, 0, 255, 255,  0, 0, 255, 255,  // Red Red Blue Blue
+            255, 0, 0, 255,  255, 0, 0, 255,  0, 0, 255, 255,  0, 0, 255, 255,  // Red Red Blue Blue
+            // Row 1 (2 pixels height)
+            0, 255, 0, 255,  0, 255, 0, 255,  255, 255, 0, 255,  255, 255, 0, 255,  // Green Green Yellow Yellow
+            0, 255, 0, 255,  0, 255, 0, 255,  255, 255, 0, 255,  255, 255, 0, 255,  // Green Green Yellow Yellow
+        ];
+        let cs = Grid::detect_codel_size_from_rgba(4, 4, &rgba);
+        assert_eq!(cs, 2);
+    }
+
+    #[test]
+    fn test_grid_from_rgba_with_codel_size() {
+        // 4x4 imagen donde cada codel es 2x2 pixels
+        let rgba = vec![
+            // Red Red Blue Blue  (2x2 blocks)
+            255, 0, 0, 255,  255, 0, 0, 255,  0, 0, 255, 255,  0, 0, 255, 255,
+            255, 0, 0, 255,  255, 0, 0, 255,  0, 0, 255, 255,  0, 0, 255, 255,
+            // Green Green Yellow Yellow (2x2 blocks)
+            0, 255, 0, 255,  0, 255, 0, 255,  255, 255, 0, 255,  255, 255, 0, 255,
+            0, 255, 0, 255,  0, 255, 0, 255,  255, 255, 0, 255,  255, 255, 0, 255,
+        ];
+        
+        // Con codel size 2, debería reducir a 2x2
+        let grid = Grid::from_rgba_with_codel_size(4, 4, &rgba, Some(2)).unwrap();
+        assert_eq!(grid.width(), 2);
+        assert_eq!(grid.height(), 2);
+        assert_eq!(grid.get(Position::new(0, 0)), Some(PietColor::Red));
+        assert_eq!(grid.get(Position::new(1, 0)), Some(PietColor::Blue));
+        assert_eq!(grid.get(Position::new(0, 1)), Some(PietColor::Green));
+        assert_eq!(grid.get(Position::new(1, 1)), Some(PietColor::Yellow));
+    }
+
+    #[test]
+    fn test_grid_from_rgba_auto_detect() {
+        // 4x4 imagen donde cada codel es 2x2 pixels
+        let rgba = vec![
+            255, 0, 0, 255,  255, 0, 0, 255,  0, 0, 255, 255,  0, 0, 255, 255,
+            255, 0, 0, 255,  255, 0, 0, 255,  0, 0, 255, 255,  0, 0, 255, 255,
+            0, 255, 0, 255,  0, 255, 0, 255,  255, 255, 0, 255,  255, 255, 0, 255,
+            0, 255, 0, 255,  0, 255, 0, 255,  255, 255, 0, 255,  255, 255, 0, 255,
+        ];
+        
+        // Auto-detect debería encontrar codel size 2
+        let grid = Grid::from_rgba_with_codel_size(4, 4, &rgba, None).unwrap();
+        assert_eq!(grid.width(), 2);
+        assert_eq!(grid.height(), 2);
     }
 }

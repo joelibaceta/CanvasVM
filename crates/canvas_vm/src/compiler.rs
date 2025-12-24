@@ -1,20 +1,75 @@
 /// Compilador de Piet: Imagen → Bytecode
-use crate::bytecode::{Instruction, Program};
+use crate::bytecode::{Instruction, InstructionDebugInfo, Program, ProgramMetadata};
 use crate::error::VmError;
 use crate::exits::{CodelChooser, Direction, Position};
 use crate::grid::Grid;
 use crate::ops::{get_operation, Operation, PietColor};
 use std::collections::{HashMap, HashSet, VecDeque};
 
+/// Compilation mode - similar to modern language compilers
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum CompileMode {
+    /// Release mode: optimized bytecode without debug information
+    #[default]
+    Release,
+    /// Debug mode: includes position, color, DP/CC information for each instruction
+    Debug,
+}
+
 /// Compilador que transforma una grilla de Piet en bytecode
 pub struct Compiler {
     grid: Grid,
+    /// Image dimensions (in pixels, before codel reduction)
+    image_width: usize,
+    image_height: usize,
+    /// Codel size used
+    codel_size: usize,
+    /// Compilation mode
+    mode: CompileMode,
 }
 
 impl Compiler {
-    /// Crea un nuevo compilador con una grilla
+    /// Crea un nuevo compilador con una grilla (release mode by default)
     pub fn new(grid: Grid) -> Self {
-        Self { grid }
+        Self::with_codel_size(grid, 1, 0, 0)
+    }
+    
+    /// Crea un nuevo compilador con información de imagen original
+    pub fn with_codel_size(grid: Grid, codel_size: usize, image_width: usize, image_height: usize) -> Self {
+        let iw = if image_width == 0 { grid.width() * codel_size } else { image_width };
+        let ih = if image_height == 0 { grid.height() * codel_size } else { image_height };
+        Self { 
+            grid, 
+            codel_size,
+            image_width: iw,
+            image_height: ih,
+            mode: CompileMode::Release,
+        }
+    }
+    
+    /// Sets the compilation mode
+    pub fn with_mode(mut self, mode: CompileMode) -> Self {
+        self.mode = mode;
+        self
+    }
+    
+    /// Returns whether debug info should be included
+    fn include_debug_info(&self) -> bool {
+        self.mode == CompileMode::Debug
+    }
+    
+    /// Adds an instruction to the program, optionally with debug info based on compile mode
+    fn emit_instruction(
+        &self,
+        program: &mut Program,
+        instr: Instruction,
+        debug_info: impl FnOnce() -> InstructionDebugInfo,
+    ) -> usize {
+        if self.include_debug_info() {
+            program.add_rich_instruction(instr, debug_info())
+        } else {
+            program.add_instruction(instr)
+        }
     }
 
     /// Compila la grilla a un programa de bytecode
@@ -26,7 +81,16 @@ impl Compiler {
     pub fn compile(&self) -> Result<Program, VmError> {
         let width = self.grid.width();
         let height = self.grid.height();
-        let mut program = Program::new(width, height);
+        
+        // Create program with metadata (always included, it's small)
+        let metadata = ProgramMetadata {
+            codel_size: self.codel_size,
+            image_width: self.image_width,
+            image_height: self.image_height,
+            grid_width: width,
+            grid_height: height,
+        };
+        let mut program = Program::with_metadata(metadata);
         
         // Mapa de (block_id, dp, cc) → instruction_index para evitar duplicados
         let mut block_instr_map: HashMap<(usize, Direction, CodelChooser), usize> = HashMap::new();
@@ -58,7 +122,17 @@ impl Compiler {
             
             // Negro = halt
             if current_color.is_black() {
-                let idx = program.add_instruction(Instruction::Halt);
+                let idx = self.emit_instruction(&mut program, Instruction::Halt, || {
+                    InstructionDebugInfo {
+                        from_pos: (pos.x, pos.y),
+                        to_pos: (pos.x, pos.y),
+                        dp,
+                        cc,
+                        block_size: 1,
+                        from_color: "Black".to_string(),
+                        to_color: "Black".to_string(),
+                    }
+                });
                 program.map_position(pos.x, pos.y, idx);
                 continue;
             }
@@ -68,8 +142,19 @@ impl Compiler {
             if current_color.is_white() {
                 // Buscar la siguiente posición no-blanca
                 if let Some(next_pos) = self.slide_preview(pos, dp) {
+                    let next_color_name = self.grid.get(next_pos).map(|c| Self::color_name(c)).unwrap_or_default();
                     // Crear un NOP que apunta directamente al destino
-                    let idx = program.add_instruction(Instruction::Nop);
+                    let idx = self.emit_instruction(&mut program, Instruction::Nop, || {
+                        InstructionDebugInfo {
+                            from_pos: (pos.x, pos.y),
+                            to_pos: (next_pos.x, next_pos.y),
+                            dp,
+                            cc,
+                            block_size: 1,
+                            from_color: "White".to_string(),
+                            to_color: next_color_name.clone(),
+                        }
+                    });
                     program.map_position(pos.x, pos.y, idx);
                     program.map_next_position(pos.x, pos.y, next_pos.x, next_pos.y);
                     
@@ -125,8 +210,19 @@ impl Compiler {
                                 (slide_pos, c)
                             } else {
                                 // No hay destino válido después del slide = halt
-                                // eprintln!("DEBUG compile: no valid destination after slide, adding Halt");
-                                let idx = program.add_instruction(Instruction::Halt);
+                                let from_color = Self::color_name(current_color);
+                                let block_size = block_info.size;
+                                let idx = self.emit_instruction(&mut program, Instruction::Halt, || {
+                                    InstructionDebugInfo {
+                                        from_pos: (pos.x, pos.y),
+                                        to_pos: (pos.x, pos.y),
+                                        dp: exit_dp,
+                                        cc: exit_cc,
+                                        block_size,
+                                        from_color: from_color.clone(),
+                                        to_color: "None".to_string(),
+                                    }
+                                });
                                 for &block_pos in &block_info.positions {
                                     program.map_position(block_pos.x, block_pos.y, idx);
                                 }
@@ -134,8 +230,19 @@ impl Compiler {
                             }
                         } else {
                             // Slide no encontró destino = halt
-                            // eprintln!("DEBUG compile: slide found no destination, adding Halt");
-                            let idx = program.add_instruction(Instruction::Halt);
+                            let from_color = Self::color_name(current_color);
+                            let block_size = block_info.size;
+                            let idx = self.emit_instruction(&mut program, Instruction::Halt, || {
+                                InstructionDebugInfo {
+                                    from_pos: (pos.x, pos.y),
+                                    to_pos: (pos.x, pos.y),
+                                    dp: exit_dp,
+                                    cc: exit_cc,
+                                    block_size,
+                                    from_color: from_color.clone(),
+                                    to_color: "None".to_string(),
+                                }
+                            });
                             for &block_pos in &block_info.positions {
                                 program.map_position(block_pos.x, block_pos.y, idx);
                             }
@@ -152,7 +259,22 @@ impl Compiler {
                         block_info.size,
                     );
                     
-                    let idx = program.add_instruction(instr.clone());
+                    // Build debug info (captured for closure)
+                    let from_color = Self::color_name(current_color);
+                    let to_color = Self::color_name(final_color);
+                    let block_size = block_info.size;
+                    
+                    let idx = self.emit_instruction(&mut program, instr.clone(), || {
+                        InstructionDebugInfo {
+                            from_pos: (pos.x, pos.y),
+                            to_pos: (final_pos.x, final_pos.y),
+                            dp: exit_dp,
+                            cc: exit_cc,
+                            block_size,
+                            from_color,
+                            to_color,
+                        }
+                    });
                     
                     // Mapear TODAS las posiciones del bloque a esta instrucción
                     for &block_pos in &block_info.positions {
@@ -197,8 +319,19 @@ impl Compiler {
                 }
             } else {
                 // No hay salida después de 8 intentos = halt
-                // eprintln!("DEBUG compile: no exit after 8 attempts, adding Halt for all block positions");
-                let idx = program.add_instruction(Instruction::Halt);
+                let from_color = Self::color_name(current_color);
+                let block_size = block_info.size;
+                let idx = self.emit_instruction(&mut program, Instruction::Halt, || {
+                    InstructionDebugInfo {
+                        from_pos: (pos.x, pos.y),
+                        to_pos: (pos.x, pos.y),
+                        dp,
+                        cc,
+                        block_size,
+                        from_color,
+                        to_color: "Blocked".to_string(),
+                    }
+                });
                 for &block_pos in &block_info.positions {
                     program.map_position(block_pos.x, block_pos.y, idx);
                 }
@@ -206,6 +339,32 @@ impl Compiler {
         }
         
         Ok(program)
+    }
+    
+    /// Converts a PietColor to a human-readable name
+    fn color_name(color: PietColor) -> String {
+        match color {
+            PietColor::White => "White".to_string(),
+            PietColor::Black => "Black".to_string(),
+            PietColor::LightRed => "LightRed".to_string(),
+            PietColor::Red => "Red".to_string(),
+            PietColor::DarkRed => "DarkRed".to_string(),
+            PietColor::LightYellow => "LightYellow".to_string(),
+            PietColor::Yellow => "Yellow".to_string(),
+            PietColor::DarkYellow => "DarkYellow".to_string(),
+            PietColor::LightGreen => "LightGreen".to_string(),
+            PietColor::Green => "Green".to_string(),
+            PietColor::DarkGreen => "DarkGreen".to_string(),
+            PietColor::LightCyan => "LightCyan".to_string(),
+            PietColor::Cyan => "Cyan".to_string(),
+            PietColor::DarkCyan => "DarkCyan".to_string(),
+            PietColor::LightBlue => "LightBlue".to_string(),
+            PietColor::Blue => "Blue".to_string(),
+            PietColor::DarkBlue => "DarkBlue".to_string(),
+            PietColor::LightMagenta => "LightMagenta".to_string(),
+            PietColor::Magenta => "Magenta".to_string(),
+            PietColor::DarkMagenta => "DarkMagenta".to_string(),
+        }
     }
     
     /// Convierte una transición de color en una instrucción

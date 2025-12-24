@@ -317,3 +317,39 @@ fn test_bytecode_compilation_all_examples() {
         println!("✓ {} compiles to bytecode", example);
     }
 }
+
+#[test]
+fn trace_echo4_linear_execution() {
+    let mut vm = load_piet_image("tools/fixtures/samples/echo4_linear.bmp");
+    
+    // Provide input for 4 chars
+    vm.input_char('A');
+    vm.input_char('B');
+    vm.input_char('C');
+    vm.input_char('D');
+    
+    println!("\n=== Tracing echo4_linear.bmp execution ===\n");
+    
+    let max_steps = 50;
+    for step in 0..max_steps {
+        if vm.is_halted() {
+            println!("Step {}: HALTED!", step);
+            break;
+        }
+        
+        let snap = vm.snapshot();
+        println!("Step {:2}: pos=({:2},{:2}) dp={:?} cc={:?} stack={:?}", 
+                 step, snap.position.x, snap.position.y, snap.dp, snap.cc, snap.stack);
+        
+        match vm.stroke() {
+            Ok(_) => {},
+            Err(e) => {
+                println!("Step {}: Error {:?}", step, e);
+                break;
+            }
+        }
+    }
+    
+    println!("\nOutput: '{}'", vm.ink_string());
+    println!("Halted: {}", vm.is_halted());
+}

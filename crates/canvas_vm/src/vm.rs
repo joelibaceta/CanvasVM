@@ -31,6 +31,8 @@ pub struct BytecodeVm {
     halted: bool,
     /// Número de pasos ejecutados
     steps: usize,
+    /// Límite máximo de pasos (watchdog). None = sin límite
+    max_steps: Option<usize>,
 }
 
 /// Snapshot del estado de la VM (para debugger)
@@ -57,6 +59,9 @@ pub struct StackPreview {
 }
 
 impl BytecodeVm {
+    /// Límite de pasos por defecto (1 millón)
+    pub const DEFAULT_MAX_STEPS: usize = 1_000_000;
+
     /// Crea una nueva VM con un programa compilado y la grid
     pub fn new(program: Program, grid: Grid) -> Self {
         // eprintln!("DEBUG BytecodeVm::new: program has {} instructions", program.instructions.len());
@@ -73,6 +78,7 @@ impl BytecodeVm {
             output: Output::new(),
             halted: false,
             steps: 0,
+            max_steps: Some(Self::DEFAULT_MAX_STEPS),
         }
     }
 
@@ -85,12 +91,37 @@ impl BytecodeVm {
         Ok(Self::new(program, grid))
     }
 
+    // === Configuración del Watchdog ===
+
+    /// Establece el límite máximo de pasos (watchdog)
+    pub fn set_max_steps(&mut self, max: Option<usize>) {
+        self.max_steps = max;
+    }
+
+    /// Obtiene el límite máximo de pasos actual
+    pub fn max_steps(&self) -> Option<usize> {
+        self.max_steps
+    }
+
+    /// Desactiva el watchdog (permite ejecución infinita)
+    pub fn disable_watchdog(&mut self) {
+        self.max_steps = None;
+    }
+
     // === API pública (equivalente a PietVm) ===
 
     /// Ejecuta un solo paso - calcula dinámicamente la instrucción basada en transición de color
     pub fn stroke(&mut self) -> Result<(), VmError> {
         if self.halted {
             return Err(VmError::Halted);
+        }
+
+        // Watchdog: verificar límite de pasos
+        if let Some(max) = self.max_steps {
+            if self.steps >= max {
+                self.halted = true;
+                return Err(VmError::ExecutionTimeout(self.steps));
+            }
         }
 
         // Obtener el color actual
@@ -140,8 +171,6 @@ impl BytecodeVm {
             }
         };
         
-        // eprintln!("DEBUG stroke: block_id={}, block_size={}", block_id, block_size);
-        
         // Intentar encontrar una salida válida (con reintentos como Piet real)
         let mut dp = self.dp;
         let mut cc = self.cc;
@@ -151,9 +180,6 @@ impl BytecodeVm {
         
         for attempt in 0..8 {
             if let Some(exit_pos) = self.grid.get_exit(block_id, dp, cc) {
-                // eprintln!("DEBUG stroke: attempt {} exit_pos=({},{}) dp={:?} cc={:?}", 
-                //           attempt, exit_pos.x, exit_pos.y, dp, cc);
-                let _ = (attempt, exit_pos.x, exit_pos.y, dp, cc); // suppress unused warnings
                 if let Some(color) = self.grid.get(exit_pos) {
                     if color.is_black() {
                         // Bloqueado por negro - rotar
@@ -167,10 +193,16 @@ impl BytecodeVm {
                         // Deslizarse por el blanco
                         if let Some(slide_pos) = self.slide_through_white(exit_pos, dp) {
                             if let Some(slide_color) = self.grid.get(slide_pos) {
-                                next_pos = Some(slide_pos);
-                                exit_color = Some(slide_color);
-                                crossed_white = true;  // Marcamos que cruzamos blanco
-                                break;
+                                // Verificar que no estamos volviendo al mismo bloque
+                                let slide_block = self.grid.get_block_id(slide_pos);
+                                if slide_block != Some(block_id) {
+                                    next_pos = Some(slide_pos);
+                                    exit_color = Some(slide_color);
+                                    crossed_white = true;  // Marcamos que cruzamos blanco
+                                    break;
+                                }
+                                // Si volvemos al mismo bloque, es como si el blanco nos bloqueara
+                                eprintln!("DEBUG stroke: slide would return to same block, treating as blocked");
                             }
                         }
                         // No se puede salir del blanco - rotar
@@ -205,9 +237,6 @@ impl BytecodeVm {
             }
         };
         
-        // eprintln!("DEBUG stroke: transition from {:?} to {:?}, next_pos=({},{})", 
-        //           current_color, final_color, final_pos.x, final_pos.y);
-        
         // Calcular y ejecutar la instrucción basada en transición de color
         // Si cruzamos blanco, NO ejecutamos operación (es como teleportarse)
         let instr = if crossed_white {
@@ -215,16 +244,15 @@ impl BytecodeVm {
         } else {
             self.color_transition_to_instruction(current_color, final_color, block_size)
         };
-        // eprintln!("DEBUG stroke: executing instruction={:?}", instr);
         
         // Ejecutar la instrucción
         match self.execute_instruction(&instr) {
             Ok(_) => {}
             Err(VmError::StackUnderflow) => {
-                // eprintln!("DEBUG stroke: stack underflow ignored for {:?}", instr);
+                // Stack underflow se ignora en Piet
             }
             Err(VmError::DivisionByZero) => {
-                // eprintln!("DEBUG stroke: division by zero ignored for {:?}", instr);
+                // División por cero se ignora en Piet
             }
             Err(e) => return Err(e),
         }
@@ -298,12 +326,32 @@ impl BytecodeVm {
     }
 
     /// Ejecuta múltiples pasos
+    /// Se detiene cuando: halted, max_steps alcanzados, o necesita input sin tenerlo
     pub fn play(&mut self, max_steps: usize) -> Result<usize, VmError> {
         let mut executed = 0;
         while !self.halted && executed < max_steps {
+            // Verificar si necesitamos input antes de ejecutar
+            if let Ok(next_instr) = self.get_next_instruction() {
+                match next_instr {
+                    Instruction::InChar | Instruction::InNumber => {
+                        if !self.input.has_input() {
+                            // Necesitamos input pero no lo tenemos
+                            // Retornar para que el caller pueda proveer input
+                            return Ok(executed);
+                        }
+                    }
+                    _ => {}
+                }
+            }
+            
             match self.stroke() {
                 Ok(_) => executed += 1,
                 Err(VmError::Halted) => break,
+                Err(VmError::InvalidInput) => {
+                    // Este caso no debería ocurrir ahora que verificamos arriba
+                    // pero por seguridad, retornamos en lugar de propagar error
+                    return Ok(executed);
+                }
                 Err(e) => return Err(e),
             }
         }
@@ -420,7 +468,42 @@ impl BytecodeVm {
 
     /// Escribe entrada como char
     pub fn input_char(&mut self, c: char) {
-        self.input.write(c as i32);
+        self.input.write_char(c);
+    }
+
+    /// Load text as character inputs (for in_char operations)
+    pub fn load_input_text(&mut self, text: &str) {
+        self.input.load_text(text);
+    }
+
+    /// Load numbers from string (whitespace-separated)
+    pub fn load_input_numbers(&mut self, text: &str) {
+        self.input.load_numbers(text);
+    }
+
+    /// Load a vector of numbers as inputs
+    pub fn load_input_number_vec(&mut self, numbers: &[i32]) {
+        self.input.load_number_vec(numbers);
+    }
+
+    /// Clear all inputs
+    pub fn clear_input(&mut self) {
+        self.input.clear();
+    }
+
+    /// Rewind input buffer to start
+    pub fn rewind_input(&mut self) {
+        self.input.rewind();
+    }
+
+    /// Check if there are inputs available
+    pub fn has_input(&self) -> bool {
+        self.input.has_input()
+    }
+
+    /// Get remaining input count
+    pub fn remaining_input(&self) -> usize {
+        self.input.remaining()
     }
 
     /// Verifica si está detenida

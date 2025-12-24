@@ -211,15 +211,6 @@ export class Canvas {
         return takeFromExternrefTable0(ret[0]);
     }
     /**
-     * Get the current watchdog limit
-     * get_max_steps(): number (0 = disabled)
-     * @returns {number}
-     */
-    get_max_steps() {
-        const ret = wasm.canvas_get_max_steps(this.__wbg_ptr);
-        return ret >>> 0;
-    }
-    /**
      * Gets the current compilation mode
      * is_debug_mode(): boolean
      * @returns {boolean}
@@ -227,14 +218,6 @@ export class Canvas {
     is_debug_mode() {
         const ret = wasm.canvas_is_debug_mode(this.__wbg_ptr);
         return ret !== 0;
-    }
-    /**
-     * Set the watchdog limit (maximum steps before timeout)
-     * set_max_steps(maxSteps: number): void
-     * @param {number} max_steps
-     */
-    set_max_steps(max_steps) {
-        wasm.canvas_set_max_steps(this.__wbg_ptr, max_steps);
     }
     /**
      * Sets the compilation mode
@@ -454,7 +437,6 @@ if (Symbol.dispose) Canvas.prototype[Symbol.dispose] = Canvas.prototype.free;
  * - Breakpoints
  * - State inspection (stack, position, DP/CC)
  * - Execution trace
- * - Watchdog para prevenir loops infinitos
  */
 export class PietDebugger {
     __destroy_into_raw() {
@@ -525,15 +507,6 @@ export class PietDebugger {
         }
     }
     /**
-     * Get the current watchdog limit
-     * get_max_steps(): number | null
-     * @returns {any}
-     */
-    get_max_steps() {
-        const ret = wasm.pietdebugger_get_max_steps(this.__wbg_ptr);
-        return ret;
-    }
-    /**
      * Get output as string
      * output_string(): string
      * @returns {string}
@@ -568,14 +541,6 @@ export class PietDebugger {
         }
     }
     /**
-     * Set the watchdog limit (maximum steps before timeout)
-     * set_max_steps(maxSteps: number): void
-     * @param {number} max_steps
-     */
-    set_max_steps(max_steps) {
-        wasm.pietdebugger_set_max_steps(this.__wbg_ptr, max_steps);
-    }
-    /**
      * Add a breakpoint at instruction index
      * add_breakpoint(index: number): void
      * @param {number} index
@@ -585,13 +550,6 @@ export class PietDebugger {
         if (ret[1]) {
             throw takeFromExternrefTable0(ret[0]);
         }
-    }
-    /**
-     * Enable the watchdog with the default limit
-     * enable_watchdog(): void
-     */
-    enable_watchdog() {
-        wasm.pietdebugger_enable_watchdog(this.__wbg_ptr);
     }
     /**
      * Load text as character inputs (each character becomes an input for in_char operations)
@@ -617,13 +575,6 @@ export class PietDebugger {
             throw takeFromExternrefTable0(ret[1]);
         }
         return ret[0] >>> 0;
-    }
-    /**
-     * Disable the watchdog (allow infinite execution - use with caution!)
-     * disable_watchdog(): void
-     */
-    disable_watchdog() {
-        wasm.pietdebugger_disable_watchdog(this.__wbg_ptr);
     }
     /**
      * Check if at a breakpoint
@@ -707,15 +658,6 @@ export class PietDebugger {
         }
     }
     /**
-     * Check if watchdog is enabled
-     * is_watchdog_enabled(): boolean
-     * @returns {boolean}
-     */
-    is_watchdog_enabled() {
-        const ret = wasm.pietdebugger_is_watchdog_enabled(this.__wbg_ptr);
-        return ret !== 0;
-    }
-    /**
      * Check if waiting for input
      * is_waiting_for_input(): boolean
      * @returns {boolean}
@@ -762,7 +704,7 @@ export class PietDebugger {
         return this;
     }
     /**
-     * Run until halt, breakpoint, or watchdog timeout
+     * Run until halt or breakpoint
      * run(): JsExecutionTrace
      * @returns {any}
      */

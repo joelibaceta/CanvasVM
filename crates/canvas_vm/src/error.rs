@@ -9,6 +9,8 @@ pub enum VmError {
     InvalidInput,
     OutOfBounds,
     Halted,
+    /// Watchdog timeout - programa excedió el límite de pasos
+    ExecutionTimeout(usize),
 }
 
 impl fmt::Display for VmError {
@@ -21,6 +23,7 @@ impl fmt::Display for VmError {
             VmError::InvalidInput => write!(f, "Invalid input"),
             VmError::OutOfBounds => write!(f, "Position out of bounds"),
             VmError::Halted => write!(f, "VM is halted"),
+            VmError::ExecutionTimeout(steps) => write!(f, "Execution timeout after {} steps", steps),
         }
     }
 }
