@@ -212,6 +212,42 @@ fn test_all_examples_snapshot() {
 }
 
 #[test]
+fn test_pi_debug() {
+    let mut vm = load_piet_image("tools/fixtures/samples/PI.png");
+    
+    println!("\n=== PI.png Debug Execution ===\n");
+    
+    let max_steps = 50;
+    let mut steps = 0;
+    
+    while !vm.is_halted() && steps < max_steps {
+        let snapshot = vm.snapshot();
+        println!("Step {:2}: pos=({:3},{:3}), dp={:?}, cc={:?}, stack={:?}, next={:?}", 
+            steps, 
+            snapshot.position.x, 
+            snapshot.position.y,
+            snapshot.dp,
+            snapshot.cc,
+            snapshot.stack,
+            snapshot.next_instruction);
+        
+        match vm.stroke() {
+            Ok(_) => steps += 1,
+            Err(e) => {
+                println!("Error: {:?}", e);
+                break;
+            }
+        }
+    }
+    
+    let final_snapshot = vm.snapshot();
+    println!("\nFinal state: pos=({},{}), halted={}", 
+        final_snapshot.position.x, final_snapshot.position.y, vm.is_halted());
+    println!("Output: {:?}", vm.ink_string());
+    println!("Total steps: {}", steps);
+}
+
+#[test]
 fn test_bytecode_compilation_all_examples() {
     // Verificar que todos los ejemplos compilan a bytecode
     let examples = [

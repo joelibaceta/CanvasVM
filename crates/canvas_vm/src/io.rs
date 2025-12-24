@@ -1,5 +1,12 @@
 use crate::error::VmError;
 
+/// Tipo de salida para distinguir números de caracteres
+#[derive(Debug, Clone, Copy)]
+pub enum OutputValue {
+    Number(i32),
+    Char(i32),
+}
+
 /// Sistema de entrada/salida para la VM
 #[derive(Debug, Clone)]
 pub struct Input {
@@ -44,7 +51,7 @@ impl Input {
 
 #[derive(Debug, Clone)]
 pub struct Output {
-    buffer: Vec<i32>,
+    buffer: Vec<OutputValue>,
 }
 
 impl Output {
@@ -53,31 +60,37 @@ impl Output {
     }
 
     pub fn write(&mut self, value: i32) {
-        self.buffer.push(value);
+        self.buffer.push(OutputValue::Number(value));
     }
 
     pub fn write_number(&mut self, value: i32) {
-        self.buffer.push(value);
+        self.buffer.push(OutputValue::Number(value));
     }
 
     pub fn write_char(&mut self, value: i32) {
-        if let Some(c) = char::from_u32(value as u32) {
-            self.buffer.push(c as i32);
-        }
+        self.buffer.push(OutputValue::Char(value));
     }
 
     pub fn write_char_from_char(&mut self, c: char) {
-        self.buffer.push(c as i32);
+        self.buffer.push(OutputValue::Char(c as i32));
     }
 
-    pub fn read(&self) -> &[i32] {
-        &self.buffer
+    pub fn read(&self) -> Vec<i32> {
+        self.buffer.iter().map(|v| match v {
+            OutputValue::Number(n) => *n,
+            OutputValue::Char(c) => *c,
+        }).collect()
     }
 
     pub fn read_string(&self) -> String {
         self.buffer
             .iter()
-            .filter_map(|&v| char::from_u32(v as u32))
+            .map(|v| match v {
+                OutputValue::Number(n) => n.to_string(),
+                OutputValue::Char(c) => char::from_u32(*c as u32)
+                    .map(|ch| ch.to_string())
+                    .unwrap_or_default(),
+            })
             .collect()
     }
 

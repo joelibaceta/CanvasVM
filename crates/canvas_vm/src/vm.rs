@@ -386,7 +386,7 @@ impl BytecodeVm {
     }
 
     /// Lee la salida
-    pub fn ink(&self) -> &[i32] {
+    pub fn ink(&self) -> Vec<i32> {
         self.output.read()
     }
 
@@ -429,65 +429,81 @@ impl BytecodeVm {
                 self.stack.push(*value);
             }
             Instruction::Pop => {
+                self.check_stack(1)?;
                 self.pop()?;
             }
             Instruction::Add => {
+                self.check_stack(2)?;
                 let b = self.pop()?;
                 let a = self.pop()?;
                 self.stack.push(a.wrapping_add(b));
             }
             Instruction::Subtract => {
+                self.check_stack(2)?;
                 let b = self.pop()?;
                 let a = self.pop()?;
                 self.stack.push(a.wrapping_sub(b));
             }
             Instruction::Multiply => {
+                self.check_stack(2)?;
                 let b = self.pop()?;
                 let a = self.pop()?;
                 // Usar wrapping para evitar panic en overflow
                 self.stack.push(a.wrapping_mul(b));
             }
             Instruction::Divide => {
+                self.check_stack(2)?;
                 let b = self.pop()?;
                 if b == 0 {
+                    // División por cero: restaurar stack y retornar error
+                    self.stack.push(b);
                     return Err(VmError::DivisionByZero);
                 }
                 let a = self.pop()?;
                 self.stack.push(a / b);
             }
             Instruction::Mod => {
+                self.check_stack(2)?;
                 let b = self.pop()?;
                 if b == 0 {
+                    // División por cero: restaurar stack y retornar error
+                    self.stack.push(b);
                     return Err(VmError::DivisionByZero);
                 }
                 let a = self.pop()?;
                 self.stack.push(a.rem_euclid(b));
             }
             Instruction::Not => {
+                self.check_stack(1)?;
                 let a = self.pop()?;
                 self.stack.push(if a == 0 { 1 } else { 0 });
             }
             Instruction::Greater => {
+                self.check_stack(2)?;
                 let b = self.pop()?;
                 let a = self.pop()?;
                 self.stack.push(if a > b { 1 } else { 0 });
             }
             Instruction::Pointer => {
+                self.check_stack(1)?;
                 let n = self.pop()?;
                 self.dp = self.dp.rotate_clockwise(n);
             }
             Instruction::Switch => {
+                self.check_stack(1)?;
                 let n = self.pop()?;
                 if n % 2 != 0 {
                     self.cc = self.cc.toggle();
                 }
             }
             Instruction::Duplicate => {
+                self.check_stack(1)?;
                 let a = self.pop()?;
                 self.stack.push(a);
                 self.stack.push(a);
             }
             Instruction::Roll => {
+                self.check_stack(2)?;
                 let times = self.pop()?;
                 let depth = self.pop()? as usize;
 
@@ -515,10 +531,12 @@ impl BytecodeVm {
                 self.stack.push(value);
             }
             Instruction::OutNumber => {
+                self.check_stack(1)?;
                 let value = self.pop()?;
                 self.output.write_number(value);
             }
             Instruction::OutChar => {
+                self.check_stack(1)?;
                 let value = self.pop()?;
                 self.output.write_char(value);
             }
@@ -535,6 +553,15 @@ impl BytecodeVm {
     /// Pop con validación
     fn pop(&mut self) -> Result<i32, VmError> {
         self.stack.pop().ok_or(VmError::StackUnderflow)
+    }
+    
+    /// Verifica que haya al menos n elementos en el stack
+    fn check_stack(&self, n: usize) -> Result<(), VmError> {
+        if self.stack.len() < n {
+            Err(VmError::StackUnderflow)
+        } else {
+            Ok(())
+        }
     }
     
     /// Deslizarse por celdas blancas hasta encontrar un color

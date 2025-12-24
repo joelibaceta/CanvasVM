@@ -20,3 +20,5 @@ node_modules/
 
 # Debug files
 *.log
+
+.DS_Store
