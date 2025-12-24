@@ -512,7 +512,14 @@ impl BytecodeVm {
             Instruction::Roll => {
                 self.check_stack(2)?;
                 let times = self.pop()?;
-                let depth = self.pop()? as usize;
+                let depth = self.pop()?;
+                
+                // Negative depth is an error - command is ignored
+                if depth < 0 {
+                    return Ok(());
+                }
+                
+                let depth = depth as usize;
 
                 if depth > self.stack.len() {
                     return Err(VmError::StackUnderflow);
