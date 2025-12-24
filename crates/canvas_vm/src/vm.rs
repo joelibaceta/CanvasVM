@@ -147,6 +147,7 @@ impl BytecodeVm {
         let mut cc = self.cc;
         let mut next_pos = None;
         let mut exit_color = None;
+        let mut crossed_white = false;  // Bandera para saber si cruzamos blanco
         
         for attempt in 0..8 {
             if let Some(exit_pos) = self.grid.get_exit(block_id, dp, cc) {
@@ -168,6 +169,7 @@ impl BytecodeVm {
                             if let Some(slide_color) = self.grid.get(slide_pos) {
                                 next_pos = Some(slide_pos);
                                 exit_color = Some(slide_color);
+                                crossed_white = true;  // Marcamos que cruzamos blanco
                                 break;
                             }
                         }
@@ -207,7 +209,12 @@ impl BytecodeVm {
         //           current_color, final_color, final_pos.x, final_pos.y);
         
         // Calcular y ejecutar la instrucción basada en transición de color
-        let instr = self.color_transition_to_instruction(current_color, final_color, block_size);
+        // Si cruzamos blanco, NO ejecutamos operación (es como teleportarse)
+        let instr = if crossed_white {
+            Instruction::Nop
+        } else {
+            self.color_transition_to_instruction(current_color, final_color, block_size)
+        };
         // eprintln!("DEBUG stroke: executing instruction={:?}", instr);
         
         // Ejecutar la instrucción
