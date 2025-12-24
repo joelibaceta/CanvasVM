@@ -229,10 +229,21 @@ impl BytecodeVm {
             Err(e) => return Err(e),
         }
         
-        // Actualizar posición y estado
+        // Actualizar posición
+        // Nota: NO sobrescribir dp y cc aquí, porque Pointer/Switch ya los modificaron
+        // Solo actualizamos dp/cc si cambiaron durante la búsqueda de salida (rotaciones por bloqueo)
+        // pero esas rotaciones ya están reflejadas en self.dp/self.cc si no hubo Pointer/Switch
         self.position = final_pos;
-        self.dp = dp;
-        self.cc = cc;
+        // Solo actualizar dp/cc si la instrucción NO fue Pointer/Switch
+        match instr {
+            Instruction::Pointer | Instruction::Switch => {
+                // Pointer/Switch ya modificaron self.dp/self.cc, no sobrescribir
+            }
+            _ => {
+                self.dp = dp;
+                self.cc = cc;
+            }
+        }
         self.steps += 1;
         
         // eprintln!("DEBUG stroke: after execution, stack={:?}", self.stack);
