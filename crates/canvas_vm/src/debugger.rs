@@ -8,7 +8,7 @@ use crate::compiler::{CompileMode, Compiler};
 use crate::error::VmError;
 use crate::exits::{CodelChooser, Direction, Position};
 use crate::grid::Grid;
-use crate::io::{Input, Output};
+use crate::io::{Input, Output, InputSource, OutputSink};
 use serde::{Deserialize, Serialize};
 
 /// Execution mode for the debugger

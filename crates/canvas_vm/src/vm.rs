@@ -4,7 +4,7 @@ use crate::compiler::Compiler;
 use crate::error::VmError;
 use crate::exits::{CodelChooser, Direction, Position};
 use crate::grid::Grid;
-use crate::io::{Input, Output};
+use crate::io::{Input, InputSource, Output, OutputSink};
 use crate::ops::{get_operation, PietColor};
 use serde::{Deserialize, Serialize};
 
@@ -516,6 +516,50 @@ impl BytecodeVm {
         self.stack.len()
     }
 
+    /// Peek at the top of the stack without removing it
+    pub fn peek(&self) -> Option<i32> {
+        self.stack.last().copied()
+    }
+
+    /// Pop a value from the stack
+    pub fn pop(&mut self) -> Result<i32, VmError> {
+        self.stack.pop().ok_or(VmError::StackUnderflow)
+    }
+
+    /// Get the instruction at the current position
+    fn get_instruction_at_current_position(&self) -> Result<Instruction, VmError> {
+        let x = self.position.x;
+        let y = self.position.y;
+        if y < self.program.position_map.len() && x < self.program.position_map[y].len() {
+            if let Some(idx) = self.program.position_map[y][x] {
+                if idx < self.program.instructions.len() {
+                    return Ok(self.program.instructions[idx].clone());
+                }
+            }
+        }
+        Err(VmError::Halted)
+    }
+
+    /// Execute the instruction at the current position and advance
+    pub fn execute_current(&mut self) -> Result<(), VmError> {
+        let instr = self.get_instruction_at_current_position()?;
+        self.execute_instruction(&instr)?;
+        self.steps += 1;
+        // Advance position to the right for tests (simplest navigation)
+        self.position.x += 1;
+        Ok(())
+    }
+
+    /// Get the current direction pointer
+    pub fn direction_pointer(&self) -> Direction {
+        self.dp
+    }
+
+    /// Get the current codel chooser
+    pub fn codel_chooser(&self) -> CodelChooser {
+        self.cc
+    }
+
     /// Retorna el número de pasos ejecutados
     pub fn get_steps(&self) -> usize {
         self.steps
@@ -657,11 +701,6 @@ impl BytecodeVm {
         }
         Ok(())
     }
-
-    /// Pop con validación
-    fn pop(&mut self) -> Result<i32, VmError> {
-        self.stack.pop().ok_or(VmError::StackUnderflow)
-    }
     
     /// Verifica que haya al menos n elementos en el stack
     fn check_stack(&self, n: usize) -> Result<(), VmError> {
@@ -776,5 +815,316 @@ mod tests {
         
         // El estado original no cambia
         assert_eq!(vm.stack_size(), 0);
+    }
+
+    // ========================================================================
+    // Tests para cada instrucción de Piet según la especificación
+    // ========================================================================
+
+    fn create_test_vm(instructions: Vec<Instruction>) -> BytecodeVm {
+        let size = instructions.len().max(3);
+        let mut program = Program::new(size, 1);
+        for (i, instr) in instructions.into_iter().enumerate() {
+            let idx = program.add_instruction(instr);
+            program.map_position(i, 0, idx);
+        }
+        let rgba = vec![0xFFu8; size * 4];
+        let grid = Grid::from_rgba(size, 1, &rgba).unwrap();
+        BytecodeVm::new(program, grid)
+    }
+
+    #[test]
+    fn test_instruction_push() {
+        let mut vm = create_test_vm(vec![Instruction::Push(42)]);
+        vm.execute_current().unwrap();
+        assert_eq!(vm.stack_size(), 1);
+        assert_eq!(vm.peek(), Some(42));
+    }
+
+    #[test]
+    fn test_instruction_pop() {
+        let mut vm = create_test_vm(vec![
+            Instruction::Push(10),
+            Instruction::Push(20),
+            Instruction::Pop,
+        ]);
+        vm.execute_current().unwrap(); // Push(10)
+        vm.execute_current().unwrap(); // Push(20)
+        vm.execute_current().unwrap(); // Pop
+        assert_eq!(vm.stack_size(), 1);
+        assert_eq!(vm.peek(), Some(10));
+    }
+
+    #[test]
+    fn test_instruction_add() {
+        let mut vm = create_test_vm(vec![
+            Instruction::Push(5),
+            Instruction::Push(3),
+            Instruction::Add,
+        ]);
+        vm.execute_current().unwrap();
+        vm.execute_current().unwrap();
+        vm.execute_current().unwrap();
+        assert_eq!(vm.stack_size(), 1);
+        assert_eq!(vm.peek(), Some(8));
+    }
+
+    #[test]
+    fn test_instruction_subtract() {
+        let mut vm = create_test_vm(vec![
+            Instruction::Push(10),
+            Instruction::Push(3),
+            Instruction::Subtract,
+        ]);
+        vm.execute_current().unwrap();
+        vm.execute_current().unwrap();
+        vm.execute_current().unwrap();
+        assert_eq!(vm.stack_size(), 1);
+        assert_eq!(vm.peek(), Some(7)); // 10 - 3 = 7
+    }
+
+    #[test]
+    fn test_instruction_multiply() {
+        let mut vm = create_test_vm(vec![
+            Instruction::Push(4),
+            Instruction::Push(5),
+            Instruction::Multiply,
+        ]);
+        vm.execute_current().unwrap();
+        vm.execute_current().unwrap();
+        vm.execute_current().unwrap();
+        assert_eq!(vm.stack_size(), 1);
+        assert_eq!(vm.peek(), Some(20));
+    }
+
+    #[test]
+    fn test_instruction_divide() {
+        let mut vm = create_test_vm(vec![
+            Instruction::Push(20),
+            Instruction::Push(4),
+            Instruction::Divide,
+        ]);
+        vm.execute_current().unwrap();
+        vm.execute_current().unwrap();
+        vm.execute_current().unwrap();
+        assert_eq!(vm.stack_size(), 1);
+        assert_eq!(vm.peek(), Some(5)); // 20 / 4 = 5
+    }
+
+    #[test]
+    fn test_instruction_divide_by_zero() {
+        let mut vm = create_test_vm(vec![
+            Instruction::Push(10),
+            Instruction::Push(0),
+            Instruction::Divide,
+        ]);
+        vm.execute_current().unwrap();
+        vm.execute_current().unwrap();
+        let result = vm.execute_current();
+        // División por cero retorna error según la implementación actual
+        assert!(result.is_err());
+        // Stack permanece con ambos valores cuando hay error
+        assert_eq!(vm.stack_size(), 2);
+    }
+
+    #[test]
+    fn test_instruction_mod() {
+        let mut vm = create_test_vm(vec![
+            Instruction::Push(17),
+            Instruction::Push(5),
+            Instruction::Mod,
+        ]);
+        vm.execute_current().unwrap();
+        vm.execute_current().unwrap();
+        vm.execute_current().unwrap();
+        assert_eq!(vm.stack_size(), 1);
+        assert_eq!(vm.peek(), Some(2)); // 17 % 5 = 2
+    }
+
+    #[test]
+    fn test_instruction_not() {
+        let mut vm = create_test_vm(vec![
+            Instruction::Push(0),
+            Instruction::Not,
+            Instruction::Push(5),
+            Instruction::Not,
+        ]);
+        vm.execute_current().unwrap(); // Push(0)
+        vm.execute_current().unwrap(); // Not -> 1
+        assert_eq!(vm.peek(), Some(1));
+        vm.execute_current().unwrap(); // Push(5)
+        vm.execute_current().unwrap(); // Not -> 0
+        assert_eq!(vm.peek(), Some(0));
+    }
+
+    #[test]
+    fn test_instruction_greater() {
+        let mut vm = create_test_vm(vec![
+            Instruction::Push(10),
+            Instruction::Push(5),
+            Instruction::Greater,
+            Instruction::Push(3),
+            Instruction::Push(7),
+            Instruction::Greater,
+        ]);
+        vm.execute_current().unwrap();
+        vm.execute_current().unwrap();
+        vm.execute_current().unwrap();
+        assert_eq!(vm.peek(), Some(1)); // 10 > 5 = 1
+        vm.execute_current().unwrap();
+        vm.execute_current().unwrap();
+        vm.execute_current().unwrap();
+        assert_eq!(vm.peek(), Some(0)); // 3 > 7 = 0
+    }
+
+    #[test]
+    fn test_instruction_duplicate() {
+        let mut vm = create_test_vm(vec![
+            Instruction::Push(42),
+            Instruction::Duplicate,
+        ]);
+        vm.execute_current().unwrap();
+        vm.execute_current().unwrap();
+        assert_eq!(vm.stack_size(), 2);
+        assert_eq!(vm.peek(), Some(42));
+        vm.pop().unwrap();
+        assert_eq!(vm.peek(), Some(42));
+    }
+
+    #[test]
+    fn test_instruction_roll() {
+        let mut vm = create_test_vm(vec![
+            Instruction::Push(1),
+            Instruction::Push(2),
+            Instruction::Push(3),
+            Instruction::Push(4),
+            Instruction::Push(2), // depth
+            Instruction::Push(1), // rolls
+            Instruction::Roll,
+        ]);
+        // Stack antes de Roll: [1, 2, 3, 4, 2, 1]
+        // Roll depth=2, rolls=1: toma los top 2 elementos excluyendo depth y rolls
+        for _ in 0..7 {
+            vm.execute_current().unwrap();
+        }
+        // Roll con depth=2, rolls=1 debe rotar [3, 4] -> [4, 3]
+        // Stack después: [1, 2, 4, 3]
+        assert_eq!(vm.stack_size(), 4);
+        let top = vm.pop().unwrap();
+        let second = vm.pop().unwrap();
+        assert_eq!(top, 3);
+        assert_eq!(second, 4);
+    }
+
+    #[test]
+    fn test_instruction_in_char() {
+        let mut vm = create_test_vm(vec![Instruction::InChar]);
+        vm.load_input_text("A");
+        vm.execute_current().unwrap();
+        assert_eq!(vm.stack_size(), 1);
+        assert_eq!(vm.peek(), Some(65)); // ASCII 'A'
+    }
+
+    #[test]
+    fn test_instruction_in_number() {
+        let mut vm = create_test_vm(vec![Instruction::InNumber]);
+        vm.load_input_numbers("42");
+        vm.execute_current().unwrap();
+        assert_eq!(vm.stack_size(), 1);
+        assert_eq!(vm.peek(), Some(42));
+    }
+
+    #[test]
+    fn test_instruction_out_char() {
+        let mut vm = create_test_vm(vec![
+            Instruction::Push(72), // 'H'
+            Instruction::OutChar,
+        ]);
+        vm.execute_current().unwrap();
+        vm.execute_current().unwrap();
+        let output = vm.ink_string();
+        assert_eq!(output, "H");
+    }
+
+    #[test]
+    fn test_instruction_out_number() {
+        let mut vm = create_test_vm(vec![
+            Instruction::Push(42),
+            Instruction::OutNumber,
+        ]);
+        vm.execute_current().unwrap();
+        vm.execute_current().unwrap();
+        let output = vm.ink();
+        assert_eq!(output, vec![42]);
+    }
+
+    #[test]
+    fn test_instruction_pointer() {
+        let mut vm = create_test_vm(vec![
+            Instruction::Push(1),
+            Instruction::Pointer,
+        ]);
+        let initial_dp = vm.dp;
+        vm.execute_current().unwrap();
+        vm.execute_current().unwrap();
+        let new_dp = vm.dp;
+        // DP debe haber rotado 1 vez en sentido horario
+        assert_ne!(initial_dp, new_dp);
+    }
+
+    #[test]
+    fn test_instruction_switch() {
+        let mut vm = create_test_vm(vec![
+            Instruction::Push(1),
+            Instruction::Switch,
+        ]);
+        let initial_cc = vm.cc;
+        vm.execute_current().unwrap();
+        vm.execute_current().unwrap();
+        let new_cc = vm.cc;
+        // CC debe haber cambiado
+        assert_ne!(initial_cc, new_cc);
+    }
+
+    #[test]
+    fn test_instruction_nop() {
+        let mut vm = create_test_vm(vec![
+            Instruction::Push(5),
+            Instruction::Nop,
+        ]);
+        vm.execute_current().unwrap();
+        vm.execute_current().unwrap();
+        // Nop no debe cambiar el stack
+        assert_eq!(vm.stack_size(), 1);
+        assert_eq!(vm.peek(), Some(5));
+    }
+
+    #[test]
+    fn test_instruction_halt() {
+        let mut vm = create_test_vm(vec![Instruction::Halt]);
+        assert!(!vm.is_halted());
+        vm.execute_current().unwrap();
+        assert!(vm.is_halted());
+    }
+
+    #[test]
+    fn test_multiple_in_char() {
+        let mut vm = create_test_vm(vec![
+            Instruction::InChar,
+            Instruction::InChar,
+            Instruction::InChar,
+            Instruction::InChar,
+        ]);
+        vm.load_input_text("HOLA");
+        vm.execute_current().unwrap();
+        vm.execute_current().unwrap();
+        vm.execute_current().unwrap();
+        vm.execute_current().unwrap();
+        assert_eq!(vm.stack_size(), 4);
+        // Stack tiene los caracteres en orden: H, O, L, A (A en el tope)
+        assert_eq!(vm.pop().unwrap(), 65); // 'A'
+        assert_eq!(vm.pop().unwrap(), 76); // 'L'
+        assert_eq!(vm.pop().unwrap(), 79); // 'O'
+        assert_eq!(vm.pop().unwrap(), 72); // 'H'
     }
 }

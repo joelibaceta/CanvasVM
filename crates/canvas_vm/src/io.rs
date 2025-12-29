@@ -1,5 +1,44 @@
 use crate::error::VmError;
 
+/// Trait for input sources - allows pluggable input implementations
+pub trait InputSource {
+    /// Read a number from input
+    fn read_number(&mut self) -> Result<i32, VmError>;
+    
+    /// Read a character from input (as i32)
+    fn read_char(&mut self) -> Result<i32, VmError>;
+    
+    /// Check if input is available
+    fn has_input(&self) -> bool;
+    
+    /// Clear all inputs
+    fn clear(&mut self);
+    
+    /// Rewind to beginning of input
+    fn rewind(&mut self);
+    
+    /// Get remaining input count
+    fn remaining(&self) -> usize;
+}
+
+/// Trait for output sinks - allows pluggable output implementations
+pub trait OutputSink {
+    /// Write a number to output
+    fn write_number(&mut self, value: i32);
+    
+    /// Write a character to output
+    fn write_char(&mut self, value: i32);
+    
+    /// Read all output as i32 values
+    fn read(&self) -> Vec<i32>;
+    
+    /// Read all output as a string
+    fn read_string(&self) -> String;
+    
+    /// Clear all output
+    fn clear(&mut self);
+}
+
 /// Tipo de entrada para distinguir números de caracteres
 #[derive(Debug, Clone, Copy)]
 pub enum InputValue {
@@ -14,19 +53,33 @@ pub enum OutputValue {
     Char(i32),
 }
 
-/// Sistema de entrada/salida para la VM
+/// Buffered input implementation - stores values in memory
 #[derive(Debug, Clone)]
-pub struct Input {
+pub struct BufferedInput {
     buffer: Vec<InputValue>,
     position: usize,
 }
 
-impl Input {
+impl BufferedInput {
     pub fn new() -> Self {
         Self {
             buffer: Vec::new(),
             position: 0,
         }
+    }
+
+    /// Create from text string (each char becomes an input)
+    pub fn from_text(text: &str) -> Self {
+        let mut input = Self::new();
+        input.load_text(text);
+        input
+    }
+
+    /// Create from numbers
+    pub fn from_numbers(numbers: &[i32]) -> Self {
+        let mut input = Self::new();
+        input.load_number_vec(numbers);
+        input
     }
 
     /// Write a single number value
@@ -62,27 +115,6 @@ impl Input {
         }
     }
 
-    /// Clear all inputs and reset position
-    pub fn clear(&mut self) {
-        self.buffer.clear();
-        self.position = 0;
-    }
-
-    /// Reset position to start (re-read inputs)
-    pub fn rewind(&mut self) {
-        self.position = 0;
-    }
-
-    /// Get remaining input count
-    pub fn remaining(&self) -> usize {
-        self.buffer.len().saturating_sub(self.position)
-    }
-
-    /// Check if there are more inputs available
-    pub fn has_input(&self) -> bool {
-        self.position < self.buffer.len()
-    }
-
     pub fn read(&mut self) -> Option<i32> {
         if self.position < self.buffer.len() {
             let value = match self.buffer[self.position] {
@@ -95,54 +127,67 @@ impl Input {
             None
         }
     }
+}
 
-    pub fn read_number(&mut self) -> Result<i32, VmError> {
+impl InputSource for BufferedInput {
+    fn read_number(&mut self) -> Result<i32, VmError> {
         self.read().ok_or(VmError::InvalidInput)
     }
 
-    pub fn read_char(&mut self) -> Result<i32, VmError> {
+    fn read_char(&mut self) -> Result<i32, VmError> {
         self.read().ok_or(VmError::InvalidInput)
     }
 
-    pub fn read_char_as_char(&mut self) -> Option<char> {
-        self.read().and_then(|v| char::from_u32(v as u32))
+    fn has_input(&self) -> bool {
+        self.position < self.buffer.len()
+    }
+
+    fn clear(&mut self) {
+        self.buffer.clear();
+        self.position = 0;
+    }
+
+    fn rewind(&mut self) {
+        self.position = 0;
+    }
+
+    fn remaining(&self) -> usize {
+        self.buffer.len().saturating_sub(self.position)
     }
 }
 
+// Type alias for backward compatibility
+pub type Input = BufferedInput;
+
+/// Buffered output implementation - stores values in memory
 #[derive(Debug, Clone)]
-pub struct Output {
+pub struct BufferedOutput {
     buffer: Vec<OutputValue>,
 }
 
-impl Output {
+impl BufferedOutput {
     pub fn new() -> Self {
         Self { buffer: Vec::new() }
     }
+}
 
-    pub fn write(&mut self, value: i32) {
+impl OutputSink for BufferedOutput {
+    fn write_number(&mut self, value: i32) {
         self.buffer.push(OutputValue::Number(value));
     }
 
-    pub fn write_number(&mut self, value: i32) {
-        self.buffer.push(OutputValue::Number(value));
-    }
-
-    pub fn write_char(&mut self, value: i32) {
+    fn write_char(&mut self, value: i32) {
         self.buffer.push(OutputValue::Char(value));
     }
 
-    pub fn write_char_from_char(&mut self, c: char) {
-        self.buffer.push(OutputValue::Char(c as i32));
-    }
-
-    pub fn read(&self) -> Vec<i32> {
+    fn read(&self) -> Vec<i32> {
         self.buffer.iter().map(|v| match v {
             OutputValue::Number(n) => *n,
             OutputValue::Char(c) => *c,
         }).collect()
     }
 
-    pub fn read_string(&self) -> String {
+    fn read_string(&self) -> String {
         self.buffer
             .iter()
             .map(|v| match v {
@@ -154,18 +199,21 @@ impl Output {
             .collect()
     }
 
-    pub fn clear(&mut self) {
+    fn clear(&mut self) {
         self.buffer.clear();
     }
 }
 
-impl Default for Input {
+// Type alias for backward compatibility
+pub type Output = BufferedOutput;
+
+impl Default for BufferedInput {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl Default for Output {
+impl Default for BufferedOutput {
     fn default() -> Self {
         Self::new()
     }
