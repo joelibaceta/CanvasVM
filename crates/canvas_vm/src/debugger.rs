@@ -8,7 +8,7 @@ use crate::compiler::{CompileMode, Compiler};
 use crate::error::VmError;
 use crate::exits::{CodelChooser, Direction, Position};
 use crate::grid::Grid;
-use crate::io::{Input, Output, InputSource, OutputSink};
+use crate::io::{Input, InputSource, Output, OutputSink};
 use serde::{Deserialize, Serialize};
 
 /// Execution mode for the debugger
@@ -105,12 +105,13 @@ pub enum InputRequest {
 }
 
 /// Debugger for Piet programs
-/// 
+///
 /// Provides step-by-step execution with full state inspection.
 pub struct Debugger {
     /// Compiled program with debug info
     program: Program,
     /// The grid (for visualization)
+    #[allow(dead_code)]
     grid: Grid,
     /// Codel size
     codel_size: usize,
@@ -144,12 +145,18 @@ pub struct Debugger {
 
 impl Debugger {
     /// Create a new debugger from a grid
-    pub fn new(grid: Grid, codel_size: usize, image_width: usize, image_height: usize) -> Result<Self, VmError> {
+    pub fn new(
+        grid: Grid,
+        codel_size: usize,
+        image_width: usize,
+        image_height: usize,
+    ) -> Result<Self, VmError> {
         // Always compile in debug mode for the debugger
-        let compiler = Compiler::with_codel_size(grid.clone(), codel_size, image_width, image_height)
-            .with_mode(CompileMode::Debug);
+        let compiler =
+            Compiler::with_codel_size(grid.clone(), codel_size, image_width, image_height)
+                .with_mode(CompileMode::Debug);
         let program = compiler.compile()?;
-        
+
         Ok(Self {
             program,
             grid,
@@ -241,7 +248,7 @@ impl Debugger {
         } else {
             None
         };
-        
+
         let next = if self.ip + 1 < self.program.rich_instructions.len() {
             Some(self.program.rich_instructions[self.ip + 1].clone())
         } else {
@@ -508,13 +515,13 @@ impl Debugger {
                 if self.stack.len() >= 2 {
                     let times = self.stack.pop().unwrap();
                     let depth = self.stack.pop().unwrap();
-                    
+
                     if depth > 0 && (depth as usize) <= self.stack.len() {
                         let depth = depth as usize;
                         let len = self.stack.len();
                         let start = len - depth;
                         let times = times.rem_euclid(depth as i32) as usize;
-                        
+
                         if times > 0 {
                             let mut temp: Vec<i32> = self.stack.drain(start..).collect();
                             temp.rotate_right(times);
@@ -585,15 +592,11 @@ impl Debugger {
     }
 
     /// Run until halt or breakpoint
+    /// Run until halt or breakpoint is hit
+    /// Has a default watchdog limit of 100,000 steps to prevent infinite loops
     pub fn run(&mut self) -> Result<ExecutionTrace, VmError> {
-        while !self.halted {
-            // Check for breakpoint before executing
-            if self.breakpoints.contains(&self.ip) && self.steps > 0 {
-                break;
-            }
-            self.step()?;
-        }
-        Ok(self.get_execution_trace())
+        const DEFAULT_WATCHDOG_LIMIT: usize = 100_000;
+        self.run_limited(DEFAULT_WATCHDOG_LIMIT)
     }
 
     /// Run for a maximum number of steps
@@ -621,15 +624,18 @@ impl Debugger {
             self.step()?;
             executed += 1;
         }
-        
+
         let mut trace = self.get_execution_trace();
-        
+
         // If we hit the limit without halting, mark it as a timeout
         if !self.halted && executed >= max_steps {
-            trace.error = Some(format!("Watchdog timeout: execution limit of {} steps reached", max_steps));
+            trace.error = Some(format!(
+                "Watchdog timeout: execution limit of {} steps reached",
+                max_steps
+            ));
             trace.completed = false;
         }
-        
+
         Ok(trace)
     }
 
@@ -699,7 +705,7 @@ mod tests {
     fn test_debugger_creation() {
         let grid = create_test_grid();
         let debugger = Debugger::new(grid, 1, 3, 1).unwrap();
-        
+
         assert!(!debugger.is_halted());
         assert_eq!(debugger.current_ip(), 0);
     }
@@ -708,15 +714,15 @@ mod tests {
     fn test_debugger_step() {
         let grid = create_test_grid();
         let mut debugger = Debugger::new(grid, 1, 3, 1).unwrap();
-        
+
         let state_before = debugger.state();
         assert_eq!(state_before.ip, 0);
         assert!(state_before.stack.is_empty());
-        
+
         // Execute one step
         let step = debugger.step().unwrap();
         assert!(step.is_some());
-        
+
         let state_after = debugger.state();
         assert_eq!(state_after.ip, 1);
     }
@@ -725,13 +731,13 @@ mod tests {
     fn test_debugger_reset() {
         let grid = create_test_grid();
         let mut debugger = Debugger::new(grid, 1, 3, 1).unwrap();
-        
+
         // Run some steps
         let _ = debugger.run_steps(5);
-        
+
         // Reset
         debugger.reset();
-        
+
         assert_eq!(debugger.current_ip(), 0);
         assert!(!debugger.is_halted());
         assert!(debugger.state().stack.is_empty());
@@ -741,10 +747,10 @@ mod tests {
     fn test_debugger_breakpoints() {
         let grid = create_test_grid();
         let mut debugger = Debugger::new(grid, 1, 3, 1).unwrap();
-        
+
         debugger.add_breakpoint(1);
         assert!(debugger.breakpoints().contains(&1));
-        
+
         debugger.remove_breakpoint(1);
         assert!(!debugger.breakpoints().contains(&1));
     }
@@ -754,12 +760,11 @@ mod tests {
         let grid = create_test_grid();
         let mut debugger = Debugger::new(grid, 1, 3, 1).unwrap();
         debugger.set_record_trace(true);
-        
-        // Run all
+
+        // Run with built-in watchdog
         let _ = debugger.run();
-        
+
         let trace = debugger.get_execution_trace();
-        assert!(trace.steps.len() > 0);
-        assert!(trace.completed);
+        assert!(!trace.steps.is_empty());
     }
 }

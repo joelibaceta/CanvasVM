@@ -4,5 +4,18 @@ members = [
     "crates/canvas_codegen",
     "crates/canvas_vm",
     "crates/canvas_wasm",
+    "crates/canvas_cli",
+    "crates/canvas_bench",
 ]
 resolver = "2"
+
+[workspace.package]
+version = "1.0.0"
+edition = "2021"
+license = "MIT"
+authors = ["Joel Ibaceta <mail@joelibaceta.com>"]
+description = "A serious virtual machine and JIT compiler for the Piet esoteric programming language"
+repository = "https://github.com/joelibaceta/CanvasVM"
+homepage = "https://canvasvm.com"
+keywords = ["piet", "vm", "interpreter", "esoteric", "compiler"]
+categories = ["compilers", "command-line-utilities", "wasm"]

@@ -4,19 +4,19 @@ use crate::error::VmError;
 pub trait InputSource {
     /// Read a number from input
     fn read_number(&mut self) -> Result<i32, VmError>;
-    
+
     /// Read a character from input (as i32)
     fn read_char(&mut self) -> Result<i32, VmError>;
-    
+
     /// Check if input is available
     fn has_input(&self) -> bool;
-    
+
     /// Clear all inputs
     fn clear(&mut self);
-    
+
     /// Rewind to beginning of input
     fn rewind(&mut self);
-    
+
     /// Get remaining input count
     fn remaining(&self) -> usize;
 }
@@ -25,16 +25,16 @@ pub trait InputSource {
 pub trait OutputSink {
     /// Write a number to output
     fn write_number(&mut self, value: i32);
-    
+
     /// Write a character to output
     fn write_char(&mut self, value: i32);
-    
+
     /// Read all output as i32 values
     fn read(&self) -> Vec<i32>;
-    
+
     /// Read all output as a string
     fn read_string(&self) -> String;
-    
+
     /// Clear all output
     fn clear(&mut self);
 }
@@ -181,10 +181,13 @@ impl OutputSink for BufferedOutput {
     }
 
     fn read(&self) -> Vec<i32> {
-        self.buffer.iter().map(|v| match v {
-            OutputValue::Number(n) => *n,
-            OutputValue::Char(c) => *c,
-        }).collect()
+        self.buffer
+            .iter()
+            .map(|v| match v {
+                OutputValue::Number(n) => *n,
+                OutputValue::Char(c) => *c,
+            })
+            .collect()
     }
 
     fn read_string(&self) -> String {

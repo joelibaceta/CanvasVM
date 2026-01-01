@@ -33,31 +33,44 @@ impl Compiler {
     pub fn new(grid: Grid) -> Self {
         Self::with_codel_size(grid, 1, 0, 0)
     }
-    
+
     /// Crea un nuevo compilador con información de imagen original
-    pub fn with_codel_size(grid: Grid, codel_size: usize, image_width: usize, image_height: usize) -> Self {
-        let iw = if image_width == 0 { grid.width() * codel_size } else { image_width };
-        let ih = if image_height == 0 { grid.height() * codel_size } else { image_height };
-        Self { 
-            grid, 
+    pub fn with_codel_size(
+        grid: Grid,
+        codel_size: usize,
+        image_width: usize,
+        image_height: usize,
+    ) -> Self {
+        let iw = if image_width == 0 {
+            grid.width() * codel_size
+        } else {
+            image_width
+        };
+        let ih = if image_height == 0 {
+            grid.height() * codel_size
+        } else {
+            image_height
+        };
+        Self {
+            grid,
             codel_size,
             image_width: iw,
             image_height: ih,
             mode: CompileMode::Release,
         }
     }
-    
+
     /// Sets the compilation mode
     pub fn with_mode(mut self, mode: CompileMode) -> Self {
         self.mode = mode;
         self
     }
-    
+
     /// Returns whether debug info should be included
     fn include_debug_info(&self) -> bool {
         self.mode == CompileMode::Debug
     }
-    
+
     /// Adds an instruction to the program, optionally with debug info based on compile mode
     fn emit_instruction(
         &self,
@@ -73,7 +86,7 @@ impl Compiler {
     }
 
     /// Compila la grilla a un programa de bytecode
-    /// 
+    ///
     /// Estrategia:
     /// 1. Recorre todos los bloques posibles desde (0,0)
     /// 2. Para cada transición de color, genera la instrucción correspondiente
@@ -81,7 +94,7 @@ impl Compiler {
     pub fn compile(&self) -> Result<Program, VmError> {
         let width = self.grid.width();
         let height = self.grid.height();
-        
+
         // Create program with metadata (always included, it's small)
         let metadata = ProgramMetadata {
             codel_size: self.codel_size,
@@ -91,25 +104,25 @@ impl Compiler {
             grid_height: height,
         };
         let mut program = Program::with_metadata(metadata);
-        
+
         // Mapa de (block_id, dp, cc) → instruction_index para evitar duplicados
         let mut block_instr_map: HashMap<(usize, Direction, CodelChooser), usize> = HashMap::new();
-        
+
         // BFS para explorar todos los estados alcanzables desde (0,0)
         let mut visited = HashSet::new();
         let mut queue = VecDeque::new();
-        
+
         // Estado inicial: posición (0,0), DP derecha, CC izquierda
         let start_pos = Position::new(0, 0);
         let start_dp = Direction::Right;
         let start_cc = CodelChooser::Left;
-        
+
         queue.push_back((start_pos, start_dp, start_cc));
         visited.insert((start_pos, start_dp, start_cc));
-        
+
         while let Some((pos, dp, cc)) = queue.pop_front() {
             // eprintln!("DEBUG compile: processing pos=({},{}) dp={:?} cc={:?}", pos.x, pos.y, dp, cc);
-            
+
             let current_color = match self.grid.get(pos) {
                 Some(color) => color,
                 None => {
@@ -117,9 +130,9 @@ impl Compiler {
                     continue;
                 }
             };
-            
+
             // eprintln!("DEBUG compile: color={:?}", current_color);
-            
+
             // Negro = halt
             if current_color.is_black() {
                 let idx = self.emit_instruction(&mut program, Instruction::Halt, || {
@@ -136,13 +149,17 @@ impl Compiler {
                 program.map_position(pos.x, pos.y, idx);
                 continue;
             }
-            
+
             // Blanco = deslizamiento (slide)
             // En Piet, los bloques blancos se "atraviesan" hasta encontrar color
             if current_color.is_white() {
                 // Buscar la siguiente posición no-blanca
                 if let Some(next_pos) = self.slide_preview(pos, dp) {
-                    let next_color_name = self.grid.get(next_pos).map(|c| Self::color_name(c)).unwrap_or_default();
+                    let next_color_name = self
+                        .grid
+                        .get(next_pos)
+                        .map(Self::color_name)
+                        .unwrap_or_default();
                     // Crear un NOP que apunta directamente al destino
                     let idx = self.emit_instruction(&mut program, Instruction::Nop, || {
                         InstructionDebugInfo {
@@ -157,7 +174,7 @@ impl Compiler {
                     });
                     program.map_position(pos.x, pos.y, idx);
                     program.map_next_position(pos.x, pos.y, next_pos.x, next_pos.y);
-                    
+
                     let next_state = (next_pos, dp, cc);
                     if !visited.contains(&next_state) {
                         visited.insert(next_state);
@@ -168,20 +185,20 @@ impl Compiler {
                 // (el programa terminará cuando llegue aquí)
                 continue;
             }
-            
+
             // Color cromático: obtener bloque y calcular transición
             let block_id = match self.grid.get_block_id(pos) {
                 Some(id) => id,
                 None => continue,
             };
-            
+
             let block_info = match self.grid.get_block_info(block_id) {
                 Some(info) => info,
                 None => continue,
             };
-            
+
             // eprintln!("DEBUG compile: block_id={} block_size={}", block_id, block_info.size);
-            
+
             // Verificar si ya compilamos esta transición
             let key = (block_id, dp, cc);
             if let Some(&instr_idx) = block_instr_map.get(&key) {
@@ -194,11 +211,11 @@ impl Compiler {
                 }
                 continue;
             }
-            
+
             // Intentar encontrar una salida válida (con reintentos como Piet real)
             let exit_result = self.find_valid_exit(block_id, dp, cc);
             // eprintln!("DEBUG compile: find_valid_exit result={:?}", exit_result);
-            
+
             if let Some((next_pos, exit_dp, exit_cc)) = exit_result {
                 if let Some(next_color) = self.grid.get(next_pos) {
                     // Si la salida lleva a blanco, deslizarse hasta el siguiente color
@@ -212,7 +229,29 @@ impl Compiler {
                                 // No hay destino válido después del slide = halt
                                 let from_color = Self::color_name(current_color);
                                 let block_size = block_info.size;
-                                let idx = self.emit_instruction(&mut program, Instruction::Halt, || {
+                                let idx =
+                                    self.emit_instruction(&mut program, Instruction::Halt, || {
+                                        InstructionDebugInfo {
+                                            from_pos: (pos.x, pos.y),
+                                            to_pos: (pos.x, pos.y),
+                                            dp: exit_dp,
+                                            cc: exit_cc,
+                                            block_size,
+                                            from_color: from_color.clone(),
+                                            to_color: "None".to_string(),
+                                        }
+                                    });
+                                for &block_pos in &block_info.positions {
+                                    program.map_position(block_pos.x, block_pos.y, idx);
+                                }
+                                continue;
+                            }
+                        } else {
+                            // Slide no encontró destino = halt
+                            let from_color = Self::color_name(current_color);
+                            let block_size = block_info.size;
+                            let idx =
+                                self.emit_instruction(&mut program, Instruction::Halt, || {
                                     InstructionDebugInfo {
                                         from_pos: (pos.x, pos.y),
                                         to_pos: (pos.x, pos.y),
@@ -223,26 +262,6 @@ impl Compiler {
                                         to_color: "None".to_string(),
                                     }
                                 });
-                                for &block_pos in &block_info.positions {
-                                    program.map_position(block_pos.x, block_pos.y, idx);
-                                }
-                                continue;
-                            }
-                        } else {
-                            // Slide no encontró destino = halt
-                            let from_color = Self::color_name(current_color);
-                            let block_size = block_info.size;
-                            let idx = self.emit_instruction(&mut program, Instruction::Halt, || {
-                                InstructionDebugInfo {
-                                    from_pos: (pos.x, pos.y),
-                                    to_pos: (pos.x, pos.y),
-                                    dp: exit_dp,
-                                    cc: exit_cc,
-                                    block_size,
-                                    from_color: from_color.clone(),
-                                    to_color: "None".to_string(),
-                                }
-                            });
                             for &block_pos in &block_info.positions {
                                 program.map_position(block_pos.x, block_pos.y, idx);
                             }
@@ -251,19 +270,19 @@ impl Compiler {
                     } else {
                         (next_pos, next_color)
                     };
-                    
+
                     // Calcular la operación basada en el cambio de color
                     let instr = self.color_transition_to_instruction(
                         current_color,
                         final_color,
                         block_info.size,
                     );
-                    
+
                     // Build debug info (captured for closure)
                     let from_color = Self::color_name(current_color);
                     let to_color = Self::color_name(final_color);
                     let block_size = block_info.size;
-                    
+
                     let idx = self.emit_instruction(&mut program, instr.clone(), || {
                         InstructionDebugInfo {
                             from_pos: (pos.x, pos.y),
@@ -275,14 +294,19 @@ impl Compiler {
                             to_color,
                         }
                     });
-                    
+
                     // Mapear TODAS las posiciones del bloque a esta instrucción
                     for &block_pos in &block_info.positions {
                         program.map_position(block_pos.x, block_pos.y, idx);
-                        program.map_next_position(block_pos.x, block_pos.y, final_pos.x, final_pos.y);
+                        program.map_next_position(
+                            block_pos.x,
+                            block_pos.y,
+                            final_pos.x,
+                            final_pos.y,
+                        );
                     }
                     block_instr_map.insert(key, idx);
-                    
+
                     // Para Switch y Pointer, explorar AMBAS ramas posibles
                     if matches!(instr, Instruction::Switch) {
                         // Rama 1: CC no cambia (valor par en stack)
@@ -337,10 +361,15 @@ impl Compiler {
                 }
             }
         }
-        
+
+        // Embed the grid data for standalone execution
+        program
+            .embed_grid(&self.grid)
+            .map_err(VmError::CompilationFailed)?;
+
         Ok(program)
     }
-    
+
     /// Converts a PietColor to a human-readable name
     fn color_name(color: PietColor) -> String {
         match color {
@@ -366,7 +395,7 @@ impl Compiler {
             PietColor::DarkMagenta => "DarkMagenta".to_string(),
         }
     }
-    
+
     /// Convierte una transición de color en una instrucción
     fn color_transition_to_instruction(
         &self,
@@ -378,22 +407,22 @@ impl Compiler {
         if to.is_white() || to.is_black() {
             return Instruction::Nop;
         }
-        
+
         // Calcular cambio de hue y lightness
         if let (Some(old_hue), Some(old_light)) = (from.hue(), from.lightness()) {
             if let (Some(new_hue), Some(new_light)) = (to.hue(), to.lightness()) {
                 let hue_change = (new_hue as i8) - (old_hue as i8);
                 let light_change = (new_light as i8) - (old_light as i8);
-                
+
                 if let Some(op) = get_operation(hue_change, light_change) {
                     return self.operation_to_instruction(op, block_size);
                 }
             }
         }
-        
+
         Instruction::Nop
     }
-    
+
     /// Convierte una operación de Piet en una instrucción de bytecode
     fn operation_to_instruction(&self, op: Operation, block_size: usize) -> Instruction {
         match op {
@@ -416,22 +445,36 @@ impl Compiler {
             Operation::OutChar => Instruction::OutChar,
         }
     }
-    
+
     /// Busca una salida válida desde un bloque, rotando CC y DP como Piet real
     /// Retorna (next_pos, final_dp, final_cc) o None si no hay salida válida
     fn find_valid_exit(
-        &self, 
-        block_id: usize, 
-        mut dp: Direction, 
-        mut cc: CodelChooser
+        &self,
+        block_id: usize,
+        mut dp: Direction,
+        mut cc: CodelChooser,
     ) -> Option<(Position, Direction, CodelChooser)> {
         // Piet intenta 8 veces: alterna entre rotar CC y rotar DP
         for attempt in 0..8 {
+            // eprintln!("DEBUG find_valid_exit: attempt {} block_id={} dp={:?} cc={:?}", attempt, block_id, dp, cc);
             if let Some(next_pos) = self.grid.get_exit(block_id, dp, cc) {
-                return Some((next_pos, dp, cc));
+                let next_color = self.grid.get(next_pos);
+                // eprintln!("DEBUG find_valid_exit: found exit to ({},{}) color={:?}", next_pos.x, next_pos.y, next_color);
+
+                // Filtrar negro - negro bloquea igual que el borde
+                if let Some(color) = next_color {
+                    if !color.is_black() {
+                        return Some((next_pos, dp, cc));
+                    }
+                    // eprintln!("DEBUG find_valid_exit: exit blocked by black, rotating");
+                } else {
+                    return Some((next_pos, dp, cc));
+                }
+            } else {
+                // eprintln!("DEBUG find_valid_exit: no exit found (edge), rotating");
             }
-            
-            // No hay salida, intentar otra dirección
+
+            // No hay salida válida, intentar otra dirección
             if attempt % 2 == 0 {
                 // Intentos pares: rotar CC
                 cc = cc.toggle();
@@ -440,29 +483,30 @@ impl Compiler {
                 dp = dp.rotate_clockwise(1);
             }
         }
-        
+
         // Después de 8 intentos, no hay salida = programa termina
+        // eprintln!("DEBUG find_valid_exit: all 8 attempts failed, returning None");
         None
     }
-    
+
     /// Vista previa de deslizamiento por blancos (sin modificar estado)
     fn slide_preview(&self, start_pos: Position, start_dp: Direction) -> Option<Position> {
         let mut pos = start_pos;
         let mut dp = start_dp;
         let mut attempts = 0;
-        
+
         // Según las reglas de Piet:
         // - Cuando entras al blanco, el DP mantiene su dirección
         // - Deslízate por el blanco hasta encontrar un borde o negro
         // - Si encuentras borde/negro, rota CC, si sigue bloqueado, rota DP
         // - Después de 8 intentos sin salida, halt
-        
+
         loop {
             if attempts >= 8 {
                 // eprintln!("DEBUG slide_preview: 8 attempts reached, no exit");
                 return None;
             }
-            
+
             if let Some(next_pos) = pos.step(dp, self.grid.width(), self.grid.height()) {
                 if let Some(color) = self.grid.get(next_pos) {
                     if color.is_white() {
@@ -476,7 +520,7 @@ impl Compiler {
                     }
                 }
             }
-            
+
             // Borde del canvas o bloque negro - rotar y reintentar
             // Piet: primero toggle CC, luego rotar DP
             if attempts % 2 == 0 {
@@ -504,12 +548,15 @@ mod tests {
             0xFF, 0xC0, 0xC0, 0xFF, // (0,0) rojo claro
             0xFF, 0xFF, 0xC0, 0xFF, // (1,0) amarillo claro
         ];
-        
+
         let grid = Grid::from_rgba(2, 1, &rgba).unwrap();
         let compiler = Compiler::new(grid);
         let program = compiler.compile().unwrap();
-        
+
         // Debe tener al menos una instrucción Add
-        assert!(program.instructions.iter().any(|i| matches!(i, Instruction::Add)));
+        assert!(program
+            .instructions
+            .iter()
+            .any(|i| matches!(i, Instruction::Add)));
     }
 }

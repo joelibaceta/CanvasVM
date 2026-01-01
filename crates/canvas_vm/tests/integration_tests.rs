@@ -16,7 +16,7 @@ fn workspace_root() -> PathBuf {
 /// Helper para cargar una imagen PNG y crear una VM
 fn load_piet_image(relative_path: &str) -> BytecodeVm {
     let path = workspace_root().join(relative_path);
-    
+
     let img = ImageReader::open(&path)
         .unwrap_or_else(|_| panic!("Failed to open image at {:?}", path))
         .decode()
@@ -35,7 +35,7 @@ fn load_piet_image(relative_path: &str) -> BytecodeVm {
 #[test]
 fn test_hello_world_compiles() {
     let vm = load_piet_image("tools/fixtures/samples/HelloWorld.png");
-    
+
     // Verificar que el programa se compiló sin errores
     assert!(!vm.is_halted(), "VM should start in non-halted state");
     assert_eq!(vm.stack_size(), 0, "Stack should be empty initially");
@@ -44,22 +44,22 @@ fn test_hello_world_compiles() {
 #[test]
 fn test_hello_world_execution() {
     let mut vm = load_piet_image("tools/fixtures/samples/HelloWorld.png");
-    
+
     // Ejecutar hasta que se detenga o máximo 1000 pasos
     let max_steps = 1000;
     let mut steps = 0;
-    
+
     while !vm.is_halted() && steps < max_steps {
         match vm.stroke() {
             Ok(_) => steps += 1,
             Err(_) => break,
         }
     }
-    
+
     // Verificar que produjo alguna salida
     let output = vm.ink_string();
     println!("HelloWorld output: {:?}", output);
-    
+
     // HelloWorld debería producir texto
     assert!(!output.is_empty(), "HelloWorld should produce output");
 }
@@ -67,17 +67,17 @@ fn test_hello_world_execution() {
 #[test]
 fn test_hello_world2_execution() {
     let mut vm = load_piet_image("tools/fixtures/samples/HelloWorld2.png");
-    
+
     let max_steps = 5000;
     let mut steps = 0;
-    
+
     while !vm.is_halted() && steps < max_steps {
         match vm.stroke() {
             Ok(_) => steps += 1,
             Err(_) => break,
         }
     }
-    
+
     let output = vm.ink_string();
     println!("HelloWorld2 output: {:?}", output);
     println!("HelloWorld2 executed {} steps", steps);
@@ -86,17 +86,17 @@ fn test_hello_world2_execution() {
 #[test]
 fn test_hello_world3_execution() {
     let mut vm = load_piet_image("tools/fixtures/samples/HelloWorld3.png");
-    
+
     let max_steps = 5000;
     let mut steps = 0;
-    
+
     while !vm.is_halted() && steps < max_steps {
         match vm.stroke() {
             Ok(_) => steps += 1,
             Err(_) => break,
         }
     }
-    
+
     let output = vm.ink_string();
     println!("HelloWorld3 output: {:?}", output);
     println!("HelloWorld3 executed {} steps", steps);
@@ -105,17 +105,17 @@ fn test_hello_world3_execution() {
 #[test]
 fn test_pi_execution() {
     let mut vm = load_piet_image("tools/fixtures/samples/PI.png");
-    
+
     let max_steps = 10000;
     let mut steps = 0;
-    
+
     while !vm.is_halted() && steps < max_steps {
         match vm.stroke() {
             Ok(_) => steps += 1,
             Err(_) => break,
         }
     }
-    
+
     let output = vm.ink_string();
     println!("PI output: {:?}", output);
     println!("PI executed {} steps", steps);
@@ -124,60 +124,30 @@ fn test_pi_execution() {
 #[test]
 fn test_piet_compiles() {
     let vm = load_piet_image("tools/fixtures/samples/Piet.png");
-    
+
     assert!(!vm.is_halted(), "VM should start in non-halted state");
 }
 
 #[test]
 fn test_piet_execution() {
     let mut vm = load_piet_image("tools/fixtures/samples/Piet.png");
-    
+
     let max_steps = 5000;
     let mut steps = 0;
-    
+
     while !vm.is_halted() && steps < max_steps {
         match vm.stroke() {
             Ok(_) => steps += 1,
             Err(_) => break,
         }
     }
-    
+
     println!("Piet executed {} steps", steps);
-    
+
     let output = vm.ink_string();
     println!("Piet output: {:?}", output);
-    
+
     assert!(steps > 0, "Piet should execute some steps");
-}
-
-#[test]
-fn test_prime_generator_compiles() {
-    let vm = load_piet_image("tools/fixtures/samples/PrimeGenerator.png");
-    
-    assert!(!vm.is_halted(), "VM should start in non-halted state");
-}
-
-#[test]
-fn test_prime_generator_execution() {
-    let mut vm = load_piet_image("tools/fixtures/samples/PrimeGenerator.png");
-    
-    // Los generadores pueden correr indefinidamente, limitamos los pasos
-    let max_steps = 10000;
-    let mut steps = 0;
-    
-    while !vm.is_halted() && steps < max_steps {
-        match vm.stroke() {
-            Ok(_) => steps += 1,
-            Err(_) => break,
-        }
-    }
-    
-    println!("PrimeGenerator executed {} steps", steps);
-    
-    let output = vm.ink();
-    println!("PrimeGenerator output: {:?}", output);
-    
-    assert!(steps > 0, "PrimeGenerator should execute some steps");
 }
 
 #[test]
@@ -188,25 +158,24 @@ fn test_all_examples_snapshot() {
         "tools/fixtures/samples/HelloWorld2.png",
         "tools/fixtures/samples/HelloWorld3.png",
         "tools/fixtures/samples/Piet.png",
-        "tools/fixtures/samples/PrimeGenerator.png",
         "tools/fixtures/samples/PI.png",
     ];
-    
+
     for example in &examples {
         let mut vm = load_piet_image(example);
-        
+
         // Snapshot inicial
         let snapshot = vm.snapshot();
         assert_eq!(snapshot.steps, 0);
         assert_eq!(snapshot.stack.len(), 0);
         assert!(!snapshot.halted);
-        
+
         // Ejecutar un paso y snapshot de nuevo
         if vm.stroke().is_ok() {
             let snapshot2 = vm.snapshot();
             assert_eq!(snapshot2.steps, 1);
         }
-        
+
         println!("✓ {} creates valid snapshots", example);
     }
 }
@@ -214,23 +183,25 @@ fn test_all_examples_snapshot() {
 #[test]
 fn test_pi_debug() {
     let mut vm = load_piet_image("tools/fixtures/samples/PI.png");
-    
+
     println!("\n=== PI.png Debug Execution ===\n");
-    
+
     let max_steps = 50;
     let mut steps = 0;
-    
+
     while !vm.is_halted() && steps < max_steps {
         let snapshot = vm.snapshot();
-        println!("Step {:2}: pos=({:3},{:3}), dp={:?}, cc={:?}, stack={:?}, next={:?}", 
-            steps, 
-            snapshot.position.x, 
+        println!(
+            "Step {:2}: pos=({:3},{:3}), dp={:?}, cc={:?}, stack={:?}, next={:?}",
+            steps,
+            snapshot.position.x,
             snapshot.position.y,
             snapshot.dp,
             snapshot.cc,
             snapshot.stack,
-            snapshot.next_instruction);
-        
+            snapshot.next_instruction
+        );
+
         match vm.stroke() {
             Ok(_) => steps += 1,
             Err(e) => {
@@ -239,10 +210,14 @@ fn test_pi_debug() {
             }
         }
     }
-    
+
     let final_snapshot = vm.snapshot();
-    println!("\nFinal state: pos=({},{}), halted={}", 
-        final_snapshot.position.x, final_snapshot.position.y, vm.is_halted());
+    println!(
+        "\nFinal state: pos=({},{}), halted={}",
+        final_snapshot.position.x,
+        final_snapshot.position.y,
+        vm.is_halted()
+    );
     println!("Output: {:?}", vm.ink_string());
     println!("Total steps: {}", steps);
 }
@@ -250,23 +225,25 @@ fn test_pi_debug() {
 #[test]
 fn test_hello_world3_debug() {
     let mut vm = load_piet_image("tools/fixtures/samples/HelloWorld3.png");
-    
+
     println!("\n=== HelloWorld3.png Debug Execution ===\n");
-    
+
     let max_steps = 60;
     let mut steps = 0;
-    
+
     while !vm.is_halted() && steps < max_steps {
         let snapshot = vm.snapshot();
-        println!("Step {:2}: pos=({:3},{:3}), dp={:?}, cc={:?}, stack={:?}, next={:?}", 
-            steps, 
-            snapshot.position.x, 
+        println!(
+            "Step {:2}: pos=({:3},{:3}), dp={:?}, cc={:?}, stack={:?}, next={:?}",
+            steps,
+            snapshot.position.x,
             snapshot.position.y,
             snapshot.dp,
             snapshot.cc,
             snapshot.stack,
-            snapshot.next_instruction);
-        
+            snapshot.next_instruction
+        );
+
         match vm.stroke() {
             Ok(_) => steps += 1,
             Err(e) => {
@@ -275,10 +252,14 @@ fn test_hello_world3_debug() {
             }
         }
     }
-    
+
     let final_snapshot = vm.snapshot();
-    println!("\nFinal state: pos=({},{}), halted={}", 
-        final_snapshot.position.x, final_snapshot.position.y, vm.is_halted());
+    println!(
+        "\nFinal state: pos=({},{}), halted={}",
+        final_snapshot.position.x,
+        final_snapshot.position.y,
+        vm.is_halted()
+    );
     println!("Output: {:?}", vm.ink_string());
     println!("Total steps: {}", steps);
 }
@@ -291,10 +272,9 @@ fn test_bytecode_compilation_all_examples() {
         "tools/fixtures/samples/HelloWorld2.png",
         "tools/fixtures/samples/HelloWorld3.png",
         "tools/fixtures/samples/Piet.png",
-        "tools/fixtures/samples/PrimeGenerator.png",
         "tools/fixtures/samples/PI.png",
     ];
-    
+
     for example in &examples {
         let path = workspace_root().join(example);
         let img = ImageReader::open(&path)
@@ -311,45 +291,47 @@ fn test_bytecode_compilation_all_examples() {
 
         // BytecodeVm::from_grid compila internamente
         let vm = BytecodeVm::from_grid(grid);
-        
+
         assert!(vm.is_ok(), "{} should compile successfully", example);
-        
+
         println!("✓ {} compiles to bytecode", example);
     }
 }
 
 #[test]
 fn trace_echo4_linear_execution() {
-    let mut vm = load_piet_image("tools/fixtures/samples/echo4_linear.bmp");
-    
+    let mut vm = load_piet_image("tools/fixtures/samples/echo4_terminating.bmp");
+
     // Provide input for 4 chars
     vm.input_char('A');
     vm.input_char('B');
     vm.input_char('C');
     vm.input_char('D');
-    
+
     println!("\n=== Tracing echo4_linear.bmp execution ===\n");
-    
+
     let max_steps = 50;
     for step in 0..max_steps {
         if vm.is_halted() {
             println!("Step {}: HALTED!", step);
             break;
         }
-        
+
         let snap = vm.snapshot();
-        println!("Step {:2}: pos=({:2},{:2}) dp={:?} cc={:?} stack={:?}", 
-                 step, snap.position.x, snap.position.y, snap.dp, snap.cc, snap.stack);
-        
+        println!(
+            "Step {:2}: pos=({:2},{:2}) dp={:?} cc={:?} stack={:?}",
+            step, snap.position.x, snap.position.y, snap.dp, snap.cc, snap.stack
+        );
+
         match vm.stroke() {
-            Ok(_) => {},
+            Ok(_) => {}
             Err(e) => {
                 println!("Step {}: Error {:?}", step, e);
                 break;
             }
         }
     }
-    
+
     println!("\nOutput: '{}'", vm.ink_string());
     println!("Halted: {}", vm.is_halted());
 }

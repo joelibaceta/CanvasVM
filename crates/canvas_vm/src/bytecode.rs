@@ -74,9 +74,12 @@ pub struct RichInstruction {
 impl RichInstruction {
     /// Creates a new rich instruction with debug info
     pub fn new(op: Instruction, debug: InstructionDebugInfo) -> Self {
-        Self { op, debug: Some(debug) }
+        Self {
+            op,
+            debug: Some(debug),
+        }
     }
-    
+
     /// Creates a rich instruction without debug info
     pub fn simple(op: Instruction) -> Self {
         Self { op, debug: None }
@@ -145,6 +148,9 @@ pub struct Program {
     pub width: usize,
     /// Original grid height (in codels)
     pub height: usize,
+    /// Serialized grid data (optional, for standalone execution)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub grid_data: Option<Vec<u8>>,
 }
 
 impl Program {
@@ -164,9 +170,10 @@ impl Program {
             next_position: vec![vec![None; width]; height],
             width,
             height,
+            grid_data: None,
         }
     }
-    
+
     /// Creates a program with explicit metadata
     pub fn with_metadata(metadata: ProgramMetadata) -> Self {
         let width = metadata.grid_width;
@@ -179,6 +186,7 @@ impl Program {
             next_position: vec![vec![None; width]; height],
             width,
             height,
+            grid_data: None,
         }
     }
 
@@ -189,12 +197,17 @@ impl Program {
         self.rich_instructions.push(RichInstruction::simple(instr));
         idx
     }
-    
+
     /// Adds a rich instruction with debug info and returns its index
-    pub fn add_rich_instruction(&mut self, instr: Instruction, debug: InstructionDebugInfo) -> usize {
+    pub fn add_rich_instruction(
+        &mut self,
+        instr: Instruction,
+        debug: InstructionDebugInfo,
+    ) -> usize {
         let idx = self.instructions.len();
         self.instructions.push(instr.clone());
-        self.rich_instructions.push(RichInstruction::new(instr, debug));
+        self.rich_instructions
+            .push(RichInstruction::new(instr, debug));
         idx
     }
 
@@ -230,7 +243,7 @@ impl Program {
         }
         None
     }
-    
+
     /// Gets the rich instruction at a position
     pub fn get_rich_instruction_at(&self, x: usize, y: usize) -> Option<&RichInstruction> {
         if y < self.height && x < self.width {
@@ -240,7 +253,7 @@ impl Program {
         }
         None
     }
-    
+
     /// Gets the instruction index at a position
     pub fn get_instruction_index_at(&self, x: usize, y: usize) -> Option<usize> {
         if y < self.height && x < self.width {
@@ -249,7 +262,7 @@ impl Program {
             None
         }
     }
-    
+
     /// Gets a rich instruction by index
     pub fn get_rich_instruction(&self, idx: usize) -> Option<&RichInstruction> {
         self.rich_instructions.get(idx)
@@ -264,6 +277,60 @@ impl Program {
     pub fn is_empty(&self) -> bool {
         self.instructions.is_empty()
     }
+
+    /// Serializes the program to bytes (using bincode for efficiency)
+    pub fn to_bytes(&self) -> Result<Vec<u8>, String> {
+        bincode::serialize(self).map_err(|e| format!("Failed to serialize program: {}", e))
+    }
+
+    /// Deserializes a program from bytes
+    pub fn from_bytes(bytes: &[u8]) -> Result<Self, String> {
+        bincode::deserialize(bytes).map_err(|e| format!("Failed to deserialize program: {}", e))
+    }
+
+    /// Saves the program to a file (.cvm format)
+    pub fn save_to_file<P: AsRef<std::path::Path>>(&self, path: P) -> Result<(), String> {
+        let bytes = self.to_bytes()?;
+        std::fs::write(path.as_ref(), bytes).map_err(|e| format!("Failed to write file: {}", e))
+    }
+
+    /// Loads a program from a file (.cvm format)
+    pub fn load_from_file<P: AsRef<std::path::Path>>(path: P) -> Result<Self, String> {
+        let bytes =
+            std::fs::read(path.as_ref()).map_err(|e| format!("Failed to read file: {}", e))?;
+        Self::from_bytes(&bytes)
+    }
+
+    /// Strips debug information to create a smaller production build
+    pub fn strip_debug_info(&mut self) {
+        for rich in &mut self.rich_instructions {
+            rich.debug = None;
+        }
+    }
+
+    /// Returns the size of the serialized program in bytes
+    pub fn serialized_size(&self) -> Result<usize, String> {
+        self.to_bytes().map(|bytes| bytes.len())
+    }
+
+    /// Embeds the grid data into the program (for standalone execution)
+    pub fn embed_grid(&mut self, grid: &crate::Grid) -> Result<(), String> {
+        self.grid_data = Some(grid.to_bytes()?);
+        Ok(())
+    }
+
+    /// Extracts the embedded grid from the program
+    pub fn extract_grid(&self) -> Result<Option<crate::Grid>, String> {
+        match &self.grid_data {
+            Some(data) => Ok(Some(crate::Grid::from_bytes(data)?)),
+            None => Ok(None),
+        }
+    }
+
+    /// Checks if the program has an embedded grid
+    pub fn has_grid(&self) -> bool {
+        self.grid_data.is_some()
+    }
 }
 
 #[cfg(test)]
@@ -273,12 +340,15 @@ mod tests {
     #[test]
     fn test_program_creation() {
         let mut program = Program::new(10, 10);
-        
+
         let idx = program.add_instruction(Instruction::Push(5));
         assert_eq!(idx, 0);
-        
+
         program.map_position(3, 4, idx);
-        assert_eq!(program.get_instruction_at(3, 4), Some(&Instruction::Push(5)));
+        assert_eq!(
+            program.get_instruction_at(3, 4),
+            Some(&Instruction::Push(5))
+        );
     }
 
     #[test]

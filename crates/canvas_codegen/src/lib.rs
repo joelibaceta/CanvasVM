@@ -40,7 +40,7 @@
 
 mod wasm;
 
-pub use wasm::{WasmCodegen, CodegenError, CodegenOptions};
+pub use wasm::{CodegenError, CodegenOptions, WasmCodegen};
 
 use canvas_vm::Program;
 
@@ -79,7 +79,8 @@ mod tests {
     use canvas_vm::{Instruction, Program, ProgramMetadata, RichInstruction};
 
     fn make_program(instructions: Vec<Instruction>) -> Program {
-        let rich = instructions.iter()
+        let rich = instructions
+            .iter()
             .map(|op| RichInstruction::simple(op.clone()))
             .collect();
         Program {
@@ -90,6 +91,7 @@ mod tests {
             next_position: vec![],
             width: 0,
             height: 0,
+            grid_data: None,
         }
     }
 
@@ -97,12 +99,12 @@ mod tests {
     fn test_empty_program() {
         let program = make_program(vec![Instruction::Halt]);
         let wasm = compile_to_wasm(&program).unwrap();
-        
+
         // WASM magic number: \0asm
         assert_eq!(&wasm[0..4], b"\0asm");
         // WASM version 1
         assert_eq!(&wasm[4..8], &[1, 0, 0, 0]);
-        
+
         // Validate with wasmparser
         wasmparser::validate(&wasm).expect("Generated WASM should be valid");
     }
@@ -117,7 +119,7 @@ mod tests {
             Instruction::Halt,
         ]);
         let wasm = compile_to_wasm(&program).unwrap();
-        
+
         // Should produce valid WASM
         assert!(wasm.len() > 8);
         wasmparser::validate(&wasm).expect("Arithmetic WASM should be valid");
@@ -172,15 +174,15 @@ mod tests {
     fn test_hello_world_pattern() {
         // Simulates output of "Hi" (H=72, i=105)
         let program = make_program(vec![
-            Instruction::Push(72),   // 'H'
+            Instruction::Push(72), // 'H'
             Instruction::OutChar,
-            Instruction::Push(105),  // 'i'
+            Instruction::Push(105), // 'i'
             Instruction::OutChar,
             Instruction::Halt,
         ]);
         let wasm = compile_to_wasm(&program).unwrap();
         wasmparser::validate(&wasm).expect("Hello world WASM should be valid");
-        
+
         // Check size is reasonable
         println!("WASM size for 'Hi': {} bytes", wasm.len());
         assert!(wasm.len() < 1000, "WASM should be compact");

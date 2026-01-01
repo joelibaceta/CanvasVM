@@ -3,13 +3,13 @@
 
 set -e
 
-echo "🔨 Building WASM..."
+echo "Building WASM..."
 wasm-pack build --target web --out-dir ../../docs/pkg crates/canvas_wasm
 
-echo "🗑️  Removing unnecessary .gitignore from pkg..."
+echo "Removing unnecessary .gitignore from pkg..."
 rm -f docs/pkg/.gitignore
 
-echo "✅ Build complete! Files are in docs/pkg/"
+echo "Build complete! Files are in docs/pkg/"
 echo ""
 echo "To test locally:"
 echo "  cd docs && python3 -m http.server 8080"

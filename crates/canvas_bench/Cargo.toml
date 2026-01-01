@@ -1,0 +1,21 @@
+[package]
+name = "canvas_bench"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+homepage.workspace = true
+description = "Performance benchmarks for Canvas VM"
+keywords.workspace = true
+categories.workspace = true
+publish = false
+
+[dependencies]
+canvas_vm = { path = "../canvas_vm" }
+criterion = "0.5"
+image = "0.25"
+
+[[bench]]
+name = "vm_benchmarks"
+harness = false

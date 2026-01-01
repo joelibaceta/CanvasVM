@@ -1,16 +1,20 @@
-# Canvas VM ⚡
+<div align="center">
+  <img src="docs/images/LogoLarge.png" alt="Canvas VM" width="400">
+  
+  <p>A high-performance Piet language runtime with visual debugging capabilities, built in Rust with WebAssembly support.</p>
+  
+  <p>
+    <img src="https://img.shields.io/badge/Piet-Runtime-blue" alt="Piet Runtime">
+    <img src="https://img.shields.io/badge/Rust-1.70+-orange" alt="Rust">
+    <img src="https://img.shields.io/badge/WebAssembly-Ready-green" alt="WASM">
+  </p>
+</div>
 
-A high-performance Piet language runtime with visual debugging capabilities, built in Rust with WebAssembly support.
-
-![Canvas VM](https://img.shields.io/badge/Piet-Runtime-blue)
-![Rust](https://img.shields.io/badge/Rust-1.70+-orange)
-![WASM](https://img.shields.io/badge/WebAssembly-Ready-green)
-
-## 🎨 What is Piet?
+## What is Piet?
 
 [Piet](https://www.dangermouse.net/esoteric/piet.html) is an esoteric programming language where programs are images. Code execution flows through colored blocks, with operations determined by color transitions. Canvas VM brings this visual language to life with a modern, performant runtime.
 
-## ✨ Features
+## Features
 
 ### Core VM
 
@@ -41,7 +45,7 @@ A high-performance Piet language runtime with visual debugging capabilities, bui
 | **Input Modal** | GUI for program input (InChar/InNumber) |
 | **Configurable Watchdog** | Prevent browser hangs with step limits |
 
-## 🔧 Architecture
+## Architecture
 
 Canvas VM provides **two execution paths** optimized for different use cases:
 
@@ -59,7 +63,7 @@ Canvas VM provides **two execution paths** optimized for different use cases:
 │                    │                                       │                │
 │                    ▼                                       ▼                │
 │  ┌─────────────────────────────────┐    ┌─────────────────────────────────┐ │
-│  │     ⚡ FAST PATH (Canvas)       │    │    🔍 DEBUG PATH (Debugger)     │ │
+│  │      FAST PATH (Canvas)       │    │     DEBUG PATH (Debugger)     │ │
 │  ├─────────────────────────────────┤    ├─────────────────────────────────┤ │
 │  │                                 │    │                                 │ │
 │  │  ┌───────────┐                  │    │  ┌───────────┐  ┌───────────┐  │ │
@@ -86,10 +90,10 @@ Canvas VM provides **two execution paths** optimized for different use cases:
 
 | Mode | WASM Class | Use Case | Execution |
 |------|------------|----------|-----------|
-| **⚡ Fast** | `Canvas` | Production, benchmarks | **Native WASM** - Bytecode compiled to WASM instructions |
-| **🔍 Debug** | `PietDebugger` | Development, learning | Interpreted with state tracking |
+| **Fast** | `Canvas` | Production, benchmarks | **Native WASM** - Bytecode compiled to WASM instructions |
+| **Debug** | `PietDebugger` | Development, learning | Interpreted with state tracking |
 
-### ⚡ Fast Path (`Canvas`) - Native Execution
+### Fast Path (`Canvas`) - Native Execution
 
 The fast path compiles Piet bytecode directly to **WebAssembly instructions**, achieving near-native performance:
 
@@ -110,7 +114,7 @@ const result = canvas.run();   // Runs at native speed
 console.log(canvas.ink_string());
 ```
 
-### 🔍 Debug Path (`PietDebugger`) - Interpreted
+### Debug Path (`PietDebugger`) - Interpreted
 
 The debug path wraps execution with state inspection capabilities:
 
@@ -127,7 +131,7 @@ while (!debugger.is_halted()) {
 }
 ```
 
-## 📋 Piet Operations
+## Piet Operations
 
 Canvas VM implements the complete Piet specification:
 
@@ -178,7 +182,7 @@ Operations are determined by hue change (columns) and lightness change (rows):
 | **Δlight=1** | divide | mod | not | greater | pointer | switch |
 | **Δlight=2** | duplicate | roll | in(num) | in(char) | out(num) | out(char) |
 
-## 🎨 Color Palette
+## Color Palette
 
 Canvas VM supports all 20 Piet colors:
 
@@ -195,7 +199,7 @@ Plus special colors:
 - **White** `#FFFFFF` - Free passage, no operation
 - **Black** `#000000` - Blocked, causes direction change
 
-## 🛡️ Watchdog System
+## Watchdog System
 
 Prevent infinite loops and runaway programs:
 
@@ -219,15 +223,15 @@ vm.disable_watchdog();
 | 1M | 1,000,000 | Complex programs |
 | ∞ | Unlimited | No limit (caution!) |
 
-## 🚀 Quick Start
+## Quick Start
 
 ### Web IDE
 
 Visit the [Canvas VM Playground](https://joelibaceta.github.io/CanvasVM/) to run Piet programs in your browser.
 
 1. Upload a `.bmp` or `.png` Piet image
-2. Click ▶️ Play or ⚡ Run Fast
-3. Use Step (⏭️) for debugging
+2. Click Play or Run Fast
+3. Use Step for debugging
 4. Watch the stack and output in real-time
 
 ### Rust Library
@@ -254,7 +258,7 @@ canvas-vm debug hello.bmp --step
 canvas-vm compile hello.bmp -o hello.pbc
 ```
 
-## 📦 Crate Structure
+## Crate Structure
 
 ```
 canvas_vm/
@@ -273,7 +277,7 @@ canvas_vm/
 └── tools/              # Development utilities
 ```
 
-## 🔬 Bytecode Format
+## Bytecode Format
 
 Instructions are compiled to an efficient intermediate representation:
 
@@ -307,7 +311,7 @@ Each instruction includes optional debug info:
 - Codel Chooser state
 - Block size and colors
 
-## ⚠️ Error Handling
+## Error Handling
 
 ```rust
 pub enum VmError {
@@ -322,7 +326,7 @@ pub enum VmError {
 }
 ```
 
-## 🧪 Testing
+## Testing
 
 ```bash
 # Run all tests
@@ -335,7 +339,7 @@ cargo test -p canvas_vm
 cargo test -- --nocapture
 ```
 
-## 🏗️ Building
+## Building
 
 ### Prerequisites
 - Rust 1.70+
@@ -351,11 +355,11 @@ cargo build --release
 wasm-pack build crates/canvas_wasm --target web --out-dir ../../docs/pkg
 ```
 
-## 📜 License
+## License
 
 MIT License - See [LICENSE](LICENSE) for details.
 
-## 🙏 Acknowledgments
+## Acknowledgments
 
 - [David Morgan-Mar](https://www.dangermouse.net/esoteric/piet.html) - Creator of Piet
 - [Piet Mondrian](https://en.wikipedia.org/wiki/Piet_Mondrian) - Artistic inspiration
@@ -364,5 +368,5 @@ MIT License - See [LICENSE](LICENSE) for details.
 ---
 
 <p align="center">
-  <strong>Canvas VM</strong> - Where art becomes code ⚡
+  <strong>Canvas VM</strong> - Where art becomes code
 </p>

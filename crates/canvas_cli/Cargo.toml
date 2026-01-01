@@ -1,0 +1,31 @@
+[package]
+name = "canvas-cli"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+homepage.workspace = true
+description = "High-performance Piet language runtime with JIT compilation"
+keywords.workspace = true
+categories.workspace = true
+
+[[bin]]
+name = "canvas-vm"
+path = "src/main.rs"
+
+[[bin]]
+name = "piet"
+path = "src/piet.rs"
+
+[[bin]]
+name = "pietc"
+path = "src/pietc.rs"
+
+[dependencies]
+canvas_vm = { path = "../canvas_vm" }
+canvas_codegen = { path = "../canvas_codegen" }
+clap = { version = "4.5", features = ["derive"] }
+image = "0.25"
+anyhow = "1.0"
+wasmtime = "27.0"

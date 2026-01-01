@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Examples Gallery - Canvas VM</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' fill='white' stroke='black' stroke-width='2'/><path d='M18 4L8 18h6l-2 10 10-14h-6z' fill='%23ffde00' stroke='black' stroke-width='1.5'/></svg>">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&amp;family=Noto+Sans:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#000000",
+                        "mondrian-red": "#d32f2f",
+                        "mondrian-yellow": "#fbc02d",
+                        "mondrian-white": "#ffffff",
+                        "mondrian-blue": "#1565c0",
+                        "background-light": "#ffffff",
+                    },
+                    fontFamily: {
+                        "display": ["Space Grotesk", "sans-serif"],
+                        "body": ["Noto Sans", "sans-serif"],
+                    },
+                    borderRadius: { "DEFAULT": "0", "lg": "0", "xl": "0", "full": "9999px" },
+                },
+            },
+        }
+    </script>
+<style>
+    .gallery-item {
+        transition: transform 0.3s ease;
+    }
+    .gallery-item:hover {
+        transform: scale(1.02);
+    }
+</style>
+</head>
+<body class="bg-black text-black font-display overflow-x-hidden selection:bg-mondrian-yellow selection:text-black">
+<div class="min-h-screen w-full bg-black border-4 border-black">
+<header class="bg-white px-6 py-4 flex items-center justify-between border-b-4 border-black">
+<div class="flex items-center gap-3">
+<img src="images/LogoSmall.png" alt="Canvas VM Logo" class="w-8 h-8 object-contain">
+<h1 class="text-xl font-bold tracking-tight text-black">Canvas VM</h1>
+</div>
+<nav class="hidden md:flex items-center gap-8">
+<a class="text-sm font-bold text-gray-600 hover:text-black transition-colors uppercase tracking-wide" href="index.html">Home</a>
+<a class="text-sm font-bold text-black transition-colors uppercase tracking-wide" href="examples.html">Examples</a>
+<a class="text-sm font-bold text-gray-600 hover:text-black transition-colors uppercase tracking-wide" href="https://github.com/joelibaceta/CanvasVM/wiki" target="_blank" rel="noopener noreferrer">Documentation</a>
+<a class="text-sm font-bold text-gray-600 hover:text-black transition-colors uppercase tracking-wide" href="https://github.com/joelibaceta/CanvasVM" target="_blank" rel="noopener noreferrer">GitHub</a>
+</nav>
+</header>
+
+<!-- Hero Section -->
+<div class="bg-mondrian-yellow py-16 px-6 lg:px-12 text-center border-b-4 border-black">
+<h2 class="text-6xl lg:text-8xl font-black tracking-tighter leading-none mb-6 text-black">
+GALLERY
+</h2>
+<p class="text-xl text-gray-800 font-body max-w-2xl mx-auto">
+Explore curated Piet programs. Each artwork is a functional program ready to execute.
+</p>
+</div>
+
+<!-- Gallery Grid -->
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 p-8 bg-white border-t-4 border-black">
+<!-- HelloWorld -->
+<div class="bg-white border-4 border-black p-6 gallery-item flex flex-col">
+<div class="bg-gray-100 border-2 border-black p-4 mb-4 flex items-center justify-center" style="min-height: 200px;">
+<img src="samples/HelloWorld.png" alt="Hello World" class="max-w-full max-h-48 object-contain" style="image-rendering: pixelated;">
+</div>
+<h3 class="text-xl font-bold text-black mb-2">Hello World</h3>
+<p class="text-sm text-gray-600 font-body mb-4 flex-grow">Classic greeting program. Outputs "Hello World!" to stdout.</p>
+<a href="index.html?program=samples/HelloWorld.png#ide" class="block w-full bg-black hover:bg-gray-800 text-white text-center font-bold py-3 px-4 transition-colors mt-auto">
+Try it →
+</a>
+</div>
+
+<!-- HelloWorld3 -->
+<div class="bg-white border-4 border-black p-6 gallery-item flex flex-col">
+<div class="bg-gray-100 border-2 border-black p-4 mb-4 flex items-center justify-center" style="min-height: 200px;">
+<img src="samples/HelloWorld3.png" alt="Artistic Hello World" class="max-w-full max-h-48 object-contain" style="image-rendering: pixelated;">
+</div>
+<h3 class="text-xl font-bold text-black mb-2">Artistic Hello World</h3>
+<p class="text-sm text-gray-600 font-body mb-4 flex-grow">Compact version using optimized codel paths.</p>
+<a href="index.html?program=samples/HelloWorld3.png#ide" class="block w-full bg-black hover:bg-gray-800 text-white text-center font-bold py-3 px-4 transition-colors mt-auto">
+Try it →
+</a>
+</div>
+
+<!-- PI -->
+<div class="bg-white border-4 border-mondrian-red p-6 gallery-item flex flex-col">
+<div class="bg-gray-100 border-2 border-mondrian-red p-4 mb-4 flex items-center justify-center" style="min-height: 200px;">
+<img src="samples/PI.png" alt="PI Calculator" class="max-w-full max-h-48 object-contain" style="image-rendering: pixelated;">
+</div>
+<h3 class="text-xl font-bold text-black mb-2">PI Calculator</h3>
+<p class="text-sm text-gray-600 font-body mb-4 flex-grow">Calculates and outputs digits of π using arithmetic operations.</p>
+<a href="index.html?program=samples/PI.png#ide" class="block w-full bg-mondrian-red hover:bg-red-700 text-white text-center font-bold py-3 px-4 transition-colors mt-auto">
+Try it →
+</a>
+</div>
+
+<!-- Sum -->
+<div class="bg-white border-4 border-mondrian-blue p-6 gallery-item flex flex-col">
+<div class="bg-gray-100 border-2 border-mondrian-blue p-4 mb-4 flex items-center justify-center" style="min-height: 200px;">
+<img src="samples/Sum.png" alt="Sum Program" class="max-w-full max-h-48 object-contain" style="image-rendering: pixelated;">
+</div>
+<h3 class="text-xl font-bold text-black mb-2">Sum</h3>
+<p class="text-sm text-gray-600 font-body mb-4 flex-grow">Takes two numbers as input and outputs their sum.</p>
+<a href="index.html?program=samples/Sum.png#ide" class="block w-full bg-mondrian-blue hover:bg-blue-800 text-white text-center font-bold py-3 px-4 transition-colors mt-auto">
+Try it →
+</a>
+</div>
+
+<!-- AZ -->
+<div class="bg-white border-4 border-mondrian-yellow p-6 gallery-item flex flex-col">
+<div class="bg-gray-100 border-2 border-mondrian-yellow p-4 mb-4 flex items-center justify-center" style="min-height: 200px;">
+<img src="samples/AZ.png" alt="A-Z Output" class="max-w-full max-h-48 object-contain" style="image-rendering: pixelated;">
+</div>
+<h3 class="text-xl font-bold text-black mb-2">A-Z Output</h3>
+<p class="text-sm text-gray-600 font-body mb-4 flex-grow">Outputs the complete alphabet from A to Z.</p>
+<a href="index.html?program=samples/AZ.png#ide" class="block w-full bg-mondrian-yellow hover:bg-yellow-600 text-black text-center font-bold py-3 px-4 transition-colors mt-auto">
+Try it →
+</a>
+</div>
+
+<!-- Piet -->
+<div class="bg-white border-4 border-black p-6 gallery-item flex flex-col">
+<div class="bg-gray-100 border-2 border-black p-4 mb-4 flex items-center justify-center" style="min-height: 200px;">
+<img src="samples/Piet.png" alt="Piet Program" class="max-w-full max-h-48 object-contain" style="image-rendering: pixelated;">
+</div>
+<h3 class="text-xl font-bold text-black mb-2">Piet</h3>
+<p class="text-sm text-gray-600 font-body mb-4 flex-grow">Outputs the word "Piet" - homage to the language creator.</p>
+<a href="index.html?program=samples/Piet.png#ide" class="block w-full bg-black hover:bg-gray-800 text-white text-center font-bold py-3 px-4 transition-colors mt-auto">
+Try it →
+</a>
+</div>
+</div>
+
+<!-- Footer -->
+<footer class="bg-white p-12 flex flex-col items-center justify-center text-center relative overflow-hidden border-t-4 border-black mt-8">
+<h2 class="text-black text-4xl lg:text-5xl font-black uppercase tracking-widest mb-4">
+Compile art. <br/>
+Execute code.
+</h2>
+<p class="text-black/60 text-xs font-mono mt-12">
+© 2023 Canvas VM. Inspired by Piet Mondrian.
+</p>
+</footer>
+</div>
+</body>
+</html>

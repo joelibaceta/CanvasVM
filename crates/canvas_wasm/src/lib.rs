@@ -1,9 +1,11 @@
-use wasm_bindgen::prelude::*;
+#![allow(unexpected_cfgs)]
+
 use canvas_vm::{
-    Grid, BytecodeVm, CompileMode, Compiler, Instruction, Program,
-    Debugger, DebuggerState, ExecutionStep, RichInstruction,
+    BytecodeVm, CompileMode, Compiler, Debugger, DebuggerState, ExecutionStep, Grid, Instruction,
+    Program, RichInstruction,
 };
 use serde::{Deserialize, Serialize};
+use wasm_bindgen::prelude::*;
 
 /// Consola de logging para debugging en el navegador
 #[wasm_bindgen]
@@ -182,8 +184,12 @@ fn rich_instruction_to_js(rich: &RichInstruction) -> JsRichInstruction {
         from_color: d.from_color.clone(),
         to_color: d.to_color.clone(),
     });
-    
-    JsRichInstruction { opcode, value, debug }
+
+    JsRichInstruction {
+        opcode,
+        value,
+        debug,
+    }
 }
 
 fn execution_step_to_js(step: &ExecutionStep) -> JsExecutionStep {
@@ -199,7 +205,7 @@ fn execution_step_to_js(step: &ExecutionStep) -> JsExecutionStep {
         from_color: d.from_color.clone(),
         to_color: d.to_color.clone(),
     });
-    
+
     JsExecutionStep {
         step: step.step,
         opcode,
@@ -217,13 +223,11 @@ fn execution_step_to_js(step: &ExecutionStep) -> JsExecutionStep {
 }
 
 fn debugger_state_to_js(state: &DebuggerState) -> JsDebuggerState {
-    let waiting_for_input = state.waiting_for_input.as_ref().map(|req| {
-        match req {
-            canvas_vm::InputRequest::Number => "number".to_string(),
-            canvas_vm::InputRequest::Char => "char".to_string(),
-        }
+    let waiting_for_input = state.waiting_for_input.as_ref().map(|req| match req {
+        canvas_vm::InputRequest::Number => "number".to_string(),
+        canvas_vm::InputRequest::Char => "char".to_string(),
     });
-    
+
     JsDebuggerState {
         ip: state.ip,
         position_x: state.position.0,
@@ -235,7 +239,10 @@ fn debugger_state_to_js(state: &DebuggerState) -> JsDebuggerState {
         stack: state.stack.clone(),
         halted: state.halted,
         steps: state.steps,
-        current_instruction: state.current_instruction.as_ref().map(rich_instruction_to_js),
+        current_instruction: state
+            .current_instruction
+            .as_ref()
+            .map(rich_instruction_to_js),
         next_instruction: state.next_instruction.as_ref().map(rich_instruction_to_js),
         output: state.output.clone(),
         output_string: state.output_string.clone(),
@@ -248,7 +255,7 @@ fn debugger_state_to_js(state: &DebuggerState) -> JsDebuggerState {
 // ============================================================================
 
 /// PietDebugger - Debugger WASM para ejecución paso a paso
-/// 
+///
 /// Provee una experiencia de debugging completa:
 /// - Step-by-step execution
 /// - Breakpoints
@@ -273,8 +280,12 @@ const DEFAULT_WATCHDOG_LIMIT: usize = 100_000;
 impl PietDebugger {
     /// Create a new debugger instance
     #[wasm_bindgen(constructor)]
+    #[allow(clippy::new_without_default)]
     pub fn new() -> PietDebugger {
-        console_log!("🔍 PietDebugger created with watchdog limit {}", DEFAULT_WATCHDOG_LIMIT);
+        console_log!(
+            "🔍 PietDebugger created with watchdog limit {}",
+            DEFAULT_WATCHDOG_LIMIT
+        );
         PietDebugger {
             debugger: None,
             grid: None,
@@ -295,26 +306,42 @@ impl PietDebugger {
         height: usize,
         codel_size: usize,
     ) -> Result<(), JsValue> {
-        let cs = if codel_size == 0 { None } else { Some(codel_size) };
-        let detected_cs = cs.unwrap_or_else(|| Grid::detect_codel_size_from_rgba(width, height, rgba_data));
-        
-        console_log!("🔍 Loading image {}x{} with codel size {}", width, height, detected_cs);
-        
+        let cs = if codel_size == 0 {
+            None
+        } else {
+            Some(codel_size)
+        };
+        let detected_cs =
+            cs.unwrap_or_else(|| Grid::detect_codel_size_from_rgba(width, height, rgba_data));
+
+        console_log!(
+            "Loading image {}x{} pixels, codel_size: {}",
+            width,
+            height,
+            detected_cs
+        );
+        console_log!("RGBA data length: {} bytes", rgba_data.len());
+
         let grid = Grid::from_rgba_with_codel_size(width, height, rgba_data, cs)
             .map_err(|e| JsValue::from_str(&format!("Failed to create grid: {}", e)))?;
-        
+
+        console_log!("Grid created: {}x{} codels", grid.width(), grid.height());
+
         self.grid = Some(grid.clone());
         self.codel_size = detected_cs;
         self.image_width = width;
         self.image_height = height;
-        
+
         // Create debugger (always in debug mode)
         let debugger = Debugger::new(grid, detected_cs, width, height)
             .map_err(|e| JsValue::from_str(&format!("Failed to create debugger: {}", e)))?;
-        
-        console_log!("✅ Debugger ready with {} instructions", debugger.instruction_count());
+
+        console_log!(
+            "Debugger ready with {} instructions",
+            debugger.instruction_count()
+        );
         self.debugger = Some(debugger);
-        
+
         Ok(())
     }
 
@@ -322,12 +349,14 @@ impl PietDebugger {
     /// state(): JsDebuggerState
     #[wasm_bindgen]
     pub fn state(&self) -> Result<JsValue, JsValue> {
-        let debugger = self.debugger.as_ref()
+        let debugger = self
+            .debugger
+            .as_ref()
             .ok_or_else(|| JsValue::from_str("Debugger not initialized. Call load() first"))?;
-        
+
         let state = debugger.state();
         let js_state = debugger_state_to_js(&state);
-        
+
         serde_wasm_bindgen::to_value(&js_state)
             .map_err(|e| JsValue::from_str(&format!("Serialization error: {}", e)))
     }
@@ -336,9 +365,11 @@ impl PietDebugger {
     /// step(): JsExecutionStep | null
     #[wasm_bindgen]
     pub fn step(&mut self) -> Result<JsValue, JsValue> {
-        let debugger = self.debugger.as_mut()
+        let debugger = self
+            .debugger
+            .as_mut()
             .ok_or_else(|| JsValue::from_str("Debugger not initialized. Call load() first"))?;
-        
+
         match debugger.step() {
             Ok(Some(step)) => {
                 let js_step = execution_step_to_js(&step);
@@ -354,31 +385,38 @@ impl PietDebugger {
     /// run(): JsExecutionTrace
     #[wasm_bindgen]
     pub fn run(&mut self) -> Result<JsValue, JsValue> {
-        let debugger = self.debugger.as_mut()
+        let debugger = self
+            .debugger
+            .as_mut()
             .ok_or_else(|| JsValue::from_str("Debugger not initialized. Call load() first"))?;
-        
+
         // Use watchdog limit if enabled
         let trace = if let Some(max_steps) = self.max_steps {
             // Run with watchdog limit
             let current_steps = debugger.state().steps;
             let remaining = max_steps.saturating_sub(current_steps);
-            
+
             if remaining == 0 {
                 // Already at or past limit
                 let mut trace = debugger.get_execution_trace();
-                trace.error = Some(format!("Watchdog timeout: execution exceeded {} steps", max_steps));
+                trace.error = Some(format!(
+                    "Watchdog timeout: execution exceeded {} steps",
+                    max_steps
+                ));
                 trace.completed = false;
                 trace
             } else {
-                debugger.run_limited(remaining)
+                debugger
+                    .run_limited(remaining)
                     .map_err(|e| JsValue::from_str(&format!("Run error: {}", e)))?
             }
         } else {
             // No watchdog - run until halt
-            debugger.run()
+            debugger
+                .run()
                 .map_err(|e| JsValue::from_str(&format!("Run error: {}", e)))?
         };
-        
+
         let js_trace = JsExecutionTrace {
             steps: trace.steps.iter().map(execution_step_to_js).collect(),
             output: trace.output,
@@ -387,7 +425,7 @@ impl PietDebugger {
             completed: trace.completed,
             error: trace.error,
         };
-        
+
         serde_wasm_bindgen::to_value(&js_trace)
             .map_err(|e| JsValue::from_str(&format!("Serialization error: {}", e)))
     }
@@ -396,10 +434,13 @@ impl PietDebugger {
     /// run_steps(maxSteps: number): number
     #[wasm_bindgen]
     pub fn run_steps(&mut self, max_steps: usize) -> Result<usize, JsValue> {
-        let debugger = self.debugger.as_mut()
+        let debugger = self
+            .debugger
+            .as_mut()
             .ok_or_else(|| JsValue::from_str("Debugger not initialized. Call load() first"))?;
-        
-        debugger.run_steps(max_steps)
+
+        debugger
+            .run_steps(max_steps)
             .map_err(|e| JsValue::from_str(&format!("Run error: {}", e)))
     }
 
@@ -407,9 +448,11 @@ impl PietDebugger {
     /// reset(): void
     #[wasm_bindgen]
     pub fn reset(&mut self) -> Result<(), JsValue> {
-        let debugger = self.debugger.as_mut()
+        let debugger = self
+            .debugger
+            .as_mut()
             .ok_or_else(|| JsValue::from_str("Debugger not initialized. Call load() first"))?;
-        
+
         debugger.reset();
         console_log!("🔄 Debugger reset");
         Ok(())
@@ -419,9 +462,11 @@ impl PietDebugger {
     /// add_breakpoint(index: number): void
     #[wasm_bindgen]
     pub fn add_breakpoint(&mut self, index: usize) -> Result<(), JsValue> {
-        let debugger = self.debugger.as_mut()
+        let debugger = self
+            .debugger
+            .as_mut()
             .ok_or_else(|| JsValue::from_str("Debugger not initialized. Call load() first"))?;
-        
+
         debugger.add_breakpoint(index);
         console_log!("🔴 Breakpoint added at instruction {}", index);
         Ok(())
@@ -431,9 +476,11 @@ impl PietDebugger {
     /// remove_breakpoint(index: number): void
     #[wasm_bindgen]
     pub fn remove_breakpoint(&mut self, index: usize) -> Result<(), JsValue> {
-        let debugger = self.debugger.as_mut()
+        let debugger = self
+            .debugger
+            .as_mut()
             .ok_or_else(|| JsValue::from_str("Debugger not initialized. Call load() first"))?;
-        
+
         debugger.remove_breakpoint(index);
         console_log!("⚪ Breakpoint removed at instruction {}", index);
         Ok(())
@@ -443,9 +490,11 @@ impl PietDebugger {
     /// clear_breakpoints(): void
     #[wasm_bindgen]
     pub fn clear_breakpoints(&mut self) -> Result<(), JsValue> {
-        let debugger = self.debugger.as_mut()
+        let debugger = self
+            .debugger
+            .as_mut()
             .ok_or_else(|| JsValue::from_str("Debugger not initialized. Call load() first"))?;
-        
+
         debugger.clear_breakpoints();
         console_log!("⚪ All breakpoints cleared");
         Ok(())
@@ -455,9 +504,11 @@ impl PietDebugger {
     /// breakpoints(): number[]
     #[wasm_bindgen]
     pub fn breakpoints(&self) -> Result<Vec<usize>, JsValue> {
-        let debugger = self.debugger.as_ref()
+        let debugger = self
+            .debugger
+            .as_ref()
             .ok_or_else(|| JsValue::from_str("Debugger not initialized. Call load() first"))?;
-        
+
         Ok(debugger.breakpoints().to_vec())
     }
 
@@ -465,9 +516,11 @@ impl PietDebugger {
     /// continue_to_breakpoint(): number | null
     #[wasm_bindgen]
     pub fn continue_to_breakpoint(&mut self) -> Result<JsValue, JsValue> {
-        let debugger = self.debugger.as_mut()
+        let debugger = self
+            .debugger
+            .as_mut()
             .ok_or_else(|| JsValue::from_str("Debugger not initialized. Call load() first"))?;
-        
+
         match debugger.continue_to_breakpoint() {
             Ok(Some(ip)) => Ok(JsValue::from(ip as u32)),
             Ok(None) => Ok(JsValue::NULL),
@@ -479,9 +532,11 @@ impl PietDebugger {
     /// is_at_breakpoint(): boolean
     #[wasm_bindgen]
     pub fn is_at_breakpoint(&self) -> Result<bool, JsValue> {
-        let debugger = self.debugger.as_ref()
+        let debugger = self
+            .debugger
+            .as_ref()
             .ok_or_else(|| JsValue::from_str("Debugger not initialized. Call load() first"))?;
-        
+
         Ok(debugger.is_at_breakpoint())
     }
 
@@ -489,9 +544,11 @@ impl PietDebugger {
     /// is_halted(): boolean
     #[wasm_bindgen]
     pub fn is_halted(&self) -> Result<bool, JsValue> {
-        let debugger = self.debugger.as_ref()
+        let debugger = self
+            .debugger
+            .as_ref()
             .ok_or_else(|| JsValue::from_str("Debugger not initialized. Call load() first"))?;
-        
+
         Ok(debugger.is_halted())
     }
 
@@ -499,9 +556,11 @@ impl PietDebugger {
     /// current_ip(): number
     #[wasm_bindgen]
     pub fn current_ip(&self) -> Result<usize, JsValue> {
-        let debugger = self.debugger.as_ref()
+        let debugger = self
+            .debugger
+            .as_ref()
             .ok_or_else(|| JsValue::from_str("Debugger not initialized. Call load() first"))?;
-        
+
         Ok(debugger.current_ip())
     }
 
@@ -509,9 +568,11 @@ impl PietDebugger {
     /// instruction_count(): number
     #[wasm_bindgen]
     pub fn instruction_count(&self) -> Result<usize, JsValue> {
-        let debugger = self.debugger.as_ref()
+        let debugger = self
+            .debugger
+            .as_ref()
             .ok_or_else(|| JsValue::from_str("Debugger not initialized. Call load() first"))?;
-        
+
         Ok(debugger.instruction_count())
     }
 
@@ -519,9 +580,11 @@ impl PietDebugger {
     /// output_string(): string
     #[wasm_bindgen]
     pub fn output_string(&self) -> Result<String, JsValue> {
-        let debugger = self.debugger.as_ref()
+        let debugger = self
+            .debugger
+            .as_ref()
             .ok_or_else(|| JsValue::from_str("Debugger not initialized. Call load() first"))?;
-        
+
         Ok(debugger.output_string())
     }
 
@@ -529,9 +592,11 @@ impl PietDebugger {
     /// input(value: number): void
     #[wasm_bindgen]
     pub fn input(&mut self, value: i32) -> Result<(), JsValue> {
-        let debugger = self.debugger.as_mut()
+        let debugger = self
+            .debugger
+            .as_mut()
             .ok_or_else(|| JsValue::from_str("Debugger not initialized. Call load() first"))?;
-        
+
         debugger.input(value);
         Ok(())
     }
@@ -540,9 +605,11 @@ impl PietDebugger {
     /// input_char(charCode: number): void
     #[wasm_bindgen]
     pub fn input_char(&mut self, char_code: u32) -> Result<(), JsValue> {
-        let debugger = self.debugger.as_mut()
+        let debugger = self
+            .debugger
+            .as_mut()
             .ok_or_else(|| JsValue::from_str("Debugger not initialized. Call load() first"))?;
-        
+
         if let Some(c) = char::from_u32(char_code) {
             debugger.input_char(c);
         }
@@ -553,9 +620,11 @@ impl PietDebugger {
     /// load_input_text(text: string): void
     #[wasm_bindgen]
     pub fn load_input_text(&mut self, text: &str) -> Result<(), JsValue> {
-        let debugger = self.debugger.as_mut()
+        let debugger = self
+            .debugger
+            .as_mut()
             .ok_or_else(|| JsValue::from_str("Debugger not initialized. Call load() first"))?;
-        
+
         debugger.load_input_text(text);
         console_log!("📥 Loaded {} character(s) as input", text.len());
         Ok(())
@@ -565,9 +634,11 @@ impl PietDebugger {
     /// load_input_numbers(text: string): void
     #[wasm_bindgen]
     pub fn load_input_numbers(&mut self, text: &str) -> Result<(), JsValue> {
-        let debugger = self.debugger.as_mut()
+        let debugger = self
+            .debugger
+            .as_mut()
             .ok_or_else(|| JsValue::from_str("Debugger not initialized. Call load() first"))?;
-        
+
         debugger.load_input_numbers(text);
         console_log!("📥 Loaded numbers from: {}", text);
         Ok(())
@@ -577,9 +648,11 @@ impl PietDebugger {
     /// load_input_numbers_array(numbers: Int32Array): void
     #[wasm_bindgen]
     pub fn load_input_numbers_array(&mut self, numbers: &[i32]) -> Result<(), JsValue> {
-        let debugger = self.debugger.as_mut()
+        let debugger = self
+            .debugger
+            .as_mut()
             .ok_or_else(|| JsValue::from_str("Debugger not initialized. Call load() first"))?;
-        
+
         debugger.load_input_number_vec(numbers);
         console_log!("📥 Loaded {} number(s) as input", numbers.len());
         Ok(())
@@ -589,9 +662,11 @@ impl PietDebugger {
     /// is_waiting_for_input(): boolean
     #[wasm_bindgen]
     pub fn is_waiting_for_input(&self) -> Result<bool, JsValue> {
-        let debugger = self.debugger.as_ref()
+        let debugger = self
+            .debugger
+            .as_ref()
             .ok_or_else(|| JsValue::from_str("Debugger not initialized. Call load() first"))?;
-        
+
         Ok(debugger.is_waiting_for_input())
     }
 
@@ -599,9 +674,11 @@ impl PietDebugger {
     /// get_input_request(): string | null  ("number" or "char")
     #[wasm_bindgen]
     pub fn get_input_request(&self) -> Result<JsValue, JsValue> {
-        let debugger = self.debugger.as_ref()
+        let debugger = self
+            .debugger
+            .as_ref()
             .ok_or_else(|| JsValue::from_str("Debugger not initialized. Call load() first"))?;
-        
+
         match debugger.get_input_request() {
             Some(canvas_vm::InputRequest::Number) => Ok(JsValue::from_str("number")),
             Some(canvas_vm::InputRequest::Char) => Ok(JsValue::from_str("char")),
@@ -613,9 +690,11 @@ impl PietDebugger {
     /// provide_input(value: number): void
     #[wasm_bindgen]
     pub fn provide_input(&mut self, value: i32) -> Result<(), JsValue> {
-        let debugger = self.debugger.as_mut()
+        let debugger = self
+            .debugger
+            .as_mut()
             .ok_or_else(|| JsValue::from_str("Debugger not initialized. Call load() first"))?;
-        
+
         debugger.provide_input(value);
         console_log!("📥 Input provided: {}", value);
         Ok(())
@@ -625,9 +704,11 @@ impl PietDebugger {
     /// provide_input_char(charCode: number): void
     #[wasm_bindgen]
     pub fn provide_input_char(&mut self, char_code: u32) -> Result<(), JsValue> {
-        let debugger = self.debugger.as_mut()
+        let debugger = self
+            .debugger
+            .as_mut()
             .ok_or_else(|| JsValue::from_str("Debugger not initialized. Call load() first"))?;
-        
+
         if let Some(c) = char::from_u32(char_code) {
             debugger.provide_input_char(c);
             console_log!("📥 Char input provided: '{}'", c);
@@ -639,9 +720,11 @@ impl PietDebugger {
     /// clear_input(): void
     #[wasm_bindgen]
     pub fn clear_input(&mut self) -> Result<(), JsValue> {
-        let debugger = self.debugger.as_mut()
+        let debugger = self
+            .debugger
+            .as_mut()
             .ok_or_else(|| JsValue::from_str("Debugger not initialized. Call load() first"))?;
-        
+
         debugger.clear_input();
         console_log!("🗑️ Input buffer cleared");
         Ok(())
@@ -651,9 +734,11 @@ impl PietDebugger {
     /// rewind_input(): void
     #[wasm_bindgen]
     pub fn rewind_input(&mut self) -> Result<(), JsValue> {
-        let debugger = self.debugger.as_mut()
+        let debugger = self
+            .debugger
+            .as_mut()
             .ok_or_else(|| JsValue::from_str("Debugger not initialized. Call load() first"))?;
-        
+
         debugger.rewind_input();
         console_log!("⏪ Input buffer rewound to start");
         Ok(())
@@ -663,9 +748,11 @@ impl PietDebugger {
     /// has_input(): boolean
     #[wasm_bindgen]
     pub fn has_input(&self) -> Result<bool, JsValue> {
-        let debugger = self.debugger.as_ref()
+        let debugger = self
+            .debugger
+            .as_ref()
             .ok_or_else(|| JsValue::from_str("Debugger not initialized. Call load() first"))?;
-        
+
         Ok(debugger.has_input())
     }
 
@@ -673,9 +760,11 @@ impl PietDebugger {
     /// remaining_input(): number
     #[wasm_bindgen]
     pub fn remaining_input(&self) -> Result<usize, JsValue> {
-        let debugger = self.debugger.as_ref()
+        let debugger = self
+            .debugger
+            .as_ref()
             .ok_or_else(|| JsValue::from_str("Debugger not initialized. Call load() first"))?;
-        
+
         Ok(debugger.remaining_input())
     }
 
@@ -712,7 +801,7 @@ impl PietDebugger {
     #[wasm_bindgen]
     pub fn enable_watchdog(&mut self) {
         self.max_steps = Some(DEFAULT_WATCHDOG_LIMIT);
-        console_log!("✅ Watchdog enabled with limit {}", DEFAULT_WATCHDOG_LIMIT);
+        console_log!("Watchdog enabled with limit {}", DEFAULT_WATCHDOG_LIMIT);
     }
 
     /// Check if watchdog is enabled
@@ -726,9 +815,11 @@ impl PietDebugger {
     /// trace(): JsExecutionTrace
     #[wasm_bindgen]
     pub fn trace(&self) -> Result<JsValue, JsValue> {
-        let debugger = self.debugger.as_ref()
+        let debugger = self
+            .debugger
+            .as_ref()
             .ok_or_else(|| JsValue::from_str("Debugger not initialized. Call load() first"))?;
-        
+
         let trace = debugger.get_execution_trace();
         let js_trace = JsExecutionTrace {
             steps: trace.steps.iter().map(execution_step_to_js).collect(),
@@ -738,7 +829,7 @@ impl PietDebugger {
             completed: trace.completed,
             error: trace.error,
         };
-        
+
         serde_wasm_bindgen::to_value(&js_trace)
             .map_err(|e| JsValue::from_str(&format!("Serialization error: {}", e)))
     }
@@ -747,11 +838,14 @@ impl PietDebugger {
     /// bytecode(): BytecodeInstruction[]
     #[wasm_bindgen]
     pub fn bytecode(&self) -> Result<JsValue, JsValue> {
-        let debugger = self.debugger.as_ref()
+        let debugger = self
+            .debugger
+            .as_ref()
             .ok_or_else(|| JsValue::from_str("Debugger not initialized. Call load() first"))?;
-        
+
         let program = debugger.program();
-        let instructions: Vec<BytecodeInstruction> = program.rich_instructions
+        let instructions: Vec<BytecodeInstruction> = program
+            .rich_instructions
             .iter()
             .enumerate()
             .map(|(i, rich)| {
@@ -767,7 +861,7 @@ impl PietDebugger {
                     from_color: d.from_color.clone(),
                     to_color: d.to_color.clone(),
                 });
-                
+
                 BytecodeInstruction {
                     index: i,
                     opcode: if let Some(v) = value {
@@ -775,13 +869,19 @@ impl PietDebugger {
                     } else {
                         opcode
                     },
-                    from_color: debug.as_ref().map(|d| d.from_color.clone()).unwrap_or_default(),
-                    to_color: debug.as_ref().map(|d| d.to_color.clone()).unwrap_or_default(),
+                    from_color: debug
+                        .as_ref()
+                        .map(|d| d.from_color.clone())
+                        .unwrap_or_default(),
+                    to_color: debug
+                        .as_ref()
+                        .map(|d| d.to_color.clone())
+                        .unwrap_or_default(),
                     debug,
                 }
             })
             .collect();
-        
+
         serde_wasm_bindgen::to_value(&instructions)
             .map_err(|e| JsValue::from_str(&format!("Serialization error: {}", e)))
     }
@@ -790,9 +890,11 @@ impl PietDebugger {
     /// metadata(): JsProgramMetadata
     #[wasm_bindgen]
     pub fn metadata(&self) -> Result<JsValue, JsValue> {
-        let debugger = self.debugger.as_ref()
+        let debugger = self
+            .debugger
+            .as_ref()
             .ok_or_else(|| JsValue::from_str("Debugger not initialized. Call load() first"))?;
-        
+
         let program = debugger.program();
         let metadata = JsProgramMetadata {
             codel_size: program.metadata.codel_size,
@@ -801,7 +903,7 @@ impl PietDebugger {
             grid_width: program.metadata.grid_width,
             grid_height: program.metadata.grid_height,
         };
-        
+
         serde_wasm_bindgen::to_value(&metadata)
             .map_err(|e| JsValue::from_str(&format!("Serialization error: {}", e)))
     }
@@ -830,8 +932,12 @@ const CANVAS_DEFAULT_MAX_STEPS: usize = 100_000;
 impl Canvas {
     /// Crea una nueva instancia de Canvas
     #[wasm_bindgen(constructor)]
+    #[allow(clippy::new_without_default)]
     pub fn new() -> Canvas {
-        console_log!("🎨 Canvas created with watchdog limit {}", CANVAS_DEFAULT_MAX_STEPS);
+        console_log!(
+            "Canvas created with watchdog limit {}",
+            CANVAS_DEFAULT_MAX_STEPS
+        );
         Canvas {
             vm: None,
             program: None,
@@ -843,14 +949,18 @@ impl Canvas {
             max_steps: Some(CANVAS_DEFAULT_MAX_STEPS),
         }
     }
-    
+
     // === Watchdog API ===
-    
+
     /// Set the watchdog limit (maximum steps before timeout)
     /// set_max_steps(maxSteps: number): void
     #[wasm_bindgen]
     pub fn set_max_steps(&mut self, max_steps: usize) {
-        self.max_steps = if max_steps == 0 { None } else { Some(max_steps) };
+        self.max_steps = if max_steps == 0 {
+            None
+        } else {
+            Some(max_steps)
+        };
         if let Some(vm) = &mut self.vm {
             vm.set_max_steps(self.max_steps);
         }
@@ -860,22 +970,22 @@ impl Canvas {
             console_log!("⚠️ Canvas watchdog disabled");
         }
     }
-    
+
     /// Get the current watchdog limit
     /// get_max_steps(): number (0 = disabled)
     #[wasm_bindgen]
     pub fn get_max_steps(&self) -> usize {
         self.max_steps.unwrap_or(0)
     }
-    
+
     /// Sets the compilation mode
     /// set_debug_mode(debug: boolean): void
     #[wasm_bindgen]
     pub fn set_debug_mode(&mut self, debug: bool) {
         self.debug_mode = debug;
-        console_log!("🔧 Compile mode: {}", if debug { "Debug" } else { "Release" });
+        console_log!("Compile mode: {}", if debug { "Debug" } else { "Release" });
     }
-    
+
     /// Gets the current compilation mode
     /// is_debug_mode(): boolean
     #[wasm_bindgen]
@@ -903,49 +1013,71 @@ impl Canvas {
     /// paint_with_codel_size(rgbaData: Uint8Array, width: number, height: number, codelSize: number)
     #[wasm_bindgen]
     pub fn paint_with_codel_size(
-        &mut self, 
-        rgba_data: &[u8], 
-        width: usize, 
+        &mut self,
+        rgba_data: &[u8],
+        width: usize,
         height: usize,
-        codel_size: usize
+        codel_size: usize,
     ) -> Result<(), JsValue> {
-        let cs = if codel_size == 0 { None } else { Some(codel_size) };
-        let detected_cs = cs.unwrap_or_else(|| Grid::detect_codel_size_from_rgba(width, height, rgba_data));
-        
-        console_log!("🎨 Loading grid {}x{} with codel size {}", width, height, detected_cs);
-        
+        let cs = if codel_size == 0 {
+            None
+        } else {
+            Some(codel_size)
+        };
+        let detected_cs =
+            cs.unwrap_or_else(|| Grid::detect_codel_size_from_rgba(width, height, rgba_data));
+
+        console_log!(
+            "Loading grid {}x{} with codel size {}",
+            width,
+            height,
+            detected_cs
+        );
+
         let grid = Grid::from_rgba_with_codel_size(width, height, rgba_data, cs)
             .map_err(|e| JsValue::from_str(&format!("Failed to create grid: {}", e)))?;
-        
+
         self.width = width;
         self.height = height;
         self.codel_size = detected_cs;
-        
-        console_log!("📐 Grid reduced to {}x{} codels", grid.width(), grid.height());
-        
+
+        console_log!(
+            "📐 Grid reduced to {}x{} codels",
+            grid.width(),
+            grid.height()
+        );
+
         // Store grid for reset functionality
         self.grid = Some(grid.clone());
-        
+
         // Compile to bytecode with selected mode
-        let mode = if self.debug_mode { CompileMode::Debug } else { CompileMode::Release };
-        console_log!("📝 Compiling to bytecode ({} mode)...", if self.debug_mode { "debug" } else { "release" });
-        
-        let compiler = Compiler::with_codel_size(grid.clone(), detected_cs, width, height)
-            .with_mode(mode);
-        let program = compiler.compile()
+        let mode = if self.debug_mode {
+            CompileMode::Debug
+        } else {
+            CompileMode::Release
+        };
+        console_log!(
+            "Compiling to bytecode ({} mode)...",
+            if self.debug_mode { "debug" } else { "release" }
+        );
+
+        let compiler =
+            Compiler::with_codel_size(grid.clone(), detected_cs, width, height).with_mode(mode);
+        let program = compiler
+            .compile()
             .map_err(|e| JsValue::from_str(&format!("Compilation error: {}", e)))?;
-        
-        console_log!("✅ Compiled {} instructions", program.instructions.len());
-        
+
+        console_log!("Compiled {} instructions", program.instructions.len());
+
         // Create BytecodeVm with the compiled program and grid
         self.program = Some(program.clone());
         let mut vm = BytecodeVm::new(program, grid);
-        
+
         // Apply watchdog limit
         vm.set_max_steps(self.max_steps);
-        
+
         self.vm = Some(vm);
-        
+
         console_log!("Grid loaded and bytecode VM ready ");
         Ok(())
     }
@@ -954,28 +1086,31 @@ impl Canvas {
     /// stroke(): void
     #[wasm_bindgen]
     pub fn stroke(&mut self) -> Result<(), JsValue> {
-        let vm = self.vm.as_mut()
+        let vm = self
+            .vm
+            .as_mut()
             .ok_or_else(|| JsValue::from_str("VM not initialized. Call paint() first"))?;
-        
+
         // Verificar si ya está halted antes de intentar ejecutar
         if vm.snapshot().halted {
             return Ok(()); // Silently return if already halted
         }
-        
-        vm.stroke()
-            .map_err(|e| {
-                console_log!("❌ Stroke error: {}", e);
-                JsValue::from_str(&format!("Step error: {}", e))
-            })
+
+        vm.stroke().map_err(|e| {
+            console_log!("Stroke error: {}", e);
+            JsValue::from_str(&format!("Step error: {}", e))
+        })
     }
 
     /// Ejecuta múltiples pasos (hasta maxSteps o hasta que se detenga)
     /// play(maxSteps: number): number - retorna pasos ejecutados
     #[wasm_bindgen]
     pub fn play(&mut self, max_steps: usize) -> Result<usize, JsValue> {
-        let vm = self.vm.as_mut()
+        let vm = self
+            .vm
+            .as_mut()
             .ok_or_else(|| JsValue::from_str("VM not initialized. Call paint() first"))?;
-        
+
         vm.play(max_steps)
             .map_err(|e| JsValue::from_str(&format!("Play error: {}", e)))
     }
@@ -984,11 +1119,13 @@ impl Canvas {
     /// snapshot(): VmSnapshot
     #[wasm_bindgen]
     pub fn snapshot(&self) -> Result<JsValue, JsValue> {
-        let vm = self.vm.as_ref()
+        let vm = self
+            .vm
+            .as_ref()
             .ok_or_else(|| JsValue::from_str("VM not initialized. Call paint() first"))?;
-        
+
         let snapshot = vm.snapshot();
-        
+
         let js_snapshot = VmSnapshot {
             position_x: snapshot.position.x,
             position_y: snapshot.position.y,
@@ -1002,7 +1139,7 @@ impl Canvas {
             steps: snapshot.steps,
             instruction_index: snapshot.instruction_index,
         };
-        
+
         serde_wasm_bindgen::to_value(&js_snapshot)
             .map_err(|e| JsValue::from_str(&format!("Serialization error: {}", e)))
     }
@@ -1011,9 +1148,11 @@ impl Canvas {
     /// ink(): Int32Array
     #[wasm_bindgen]
     pub fn ink(&self) -> Result<Vec<i32>, JsValue> {
-        let vm = self.vm.as_ref()
+        let vm = self
+            .vm
+            .as_ref()
             .ok_or_else(|| JsValue::from_str("VM not initialized. Call paint() first"))?;
-        
+
         Ok(vm.ink().to_vec())
     }
 
@@ -1021,9 +1160,11 @@ impl Canvas {
     /// ink_string(): string
     #[wasm_bindgen]
     pub fn ink_string(&self) -> Result<String, JsValue> {
-        let vm = self.vm.as_ref()
+        let vm = self
+            .vm
+            .as_ref()
             .ok_or_else(|| JsValue::from_str("VM not initialized. Call paint() first"))?;
-        
+
         Ok(vm.ink_string())
     }
 
@@ -1031,9 +1172,11 @@ impl Canvas {
     /// input(value: number): void
     #[wasm_bindgen]
     pub fn input(&mut self, value: i32) -> Result<(), JsValue> {
-        let vm = self.vm.as_mut()
+        let vm = self
+            .vm
+            .as_mut()
             .ok_or_else(|| JsValue::from_str("VM not initialized. Call paint() first"))?;
-        
+
         vm.input(value);
         Ok(())
     }
@@ -1042,12 +1185,14 @@ impl Canvas {
     /// input_char(charCode: number): void
     #[wasm_bindgen]
     pub fn input_char(&mut self, char_code: u32) -> Result<(), JsValue> {
-        let vm = self.vm.as_mut()
+        let vm = self
+            .vm
+            .as_mut()
             .ok_or_else(|| JsValue::from_str("VM not initialized. Call paint() first"))?;
-        
+
         let c = char::from_u32(char_code)
             .ok_or_else(|| JsValue::from_str("Invalid character code "))?;
-        
+
         vm.input_char(c);
         Ok(())
     }
@@ -1056,9 +1201,11 @@ impl Canvas {
     /// has_input(): boolean
     #[wasm_bindgen]
     pub fn has_input(&self) -> Result<bool, JsValue> {
-        let vm = self.vm.as_ref()
+        let vm = self
+            .vm
+            .as_ref()
             .ok_or_else(|| JsValue::from_str("VM not initialized. Call paint() first"))?;
-        
+
         Ok(vm.has_input())
     }
 
@@ -1067,9 +1214,11 @@ impl Canvas {
     /// get_next_opcode(): string | null
     #[wasm_bindgen]
     pub fn get_next_opcode(&self) -> Result<JsValue, JsValue> {
-        let vm = self.vm.as_ref()
+        let vm = self
+            .vm
+            .as_ref()
             .ok_or_else(|| JsValue::from_str("VM not initialized. Call paint() first"))?;
-        
+
         let snapshot = vm.snapshot();
         match snapshot.next_instruction {
             Some(instr) => {
@@ -1104,14 +1253,16 @@ impl Canvas {
     /// needs_input(): string | null  (returns "number", "char", or null)
     #[wasm_bindgen]
     pub fn needs_input(&self) -> Result<JsValue, JsValue> {
-        let vm = self.vm.as_ref()
+        let vm = self
+            .vm
+            .as_ref()
             .ok_or_else(|| JsValue::from_str("VM not initialized. Call paint() first"))?;
-        
+
         // Check if we have input in buffer
         if vm.has_input() {
             return Ok(JsValue::NULL);
         }
-        
+
         let snapshot = vm.snapshot();
         match snapshot.next_instruction {
             Some(Instruction::InNumber) => Ok(JsValue::from_str("number")),
@@ -1124,9 +1275,11 @@ impl Canvas {
     /// is_halted(): boolean
     #[wasm_bindgen]
     pub fn is_halted(&self) -> Result<bool, JsValue> {
-        let vm = self.vm.as_ref()
+        let vm = self
+            .vm
+            .as_ref()
             .ok_or_else(|| JsValue::from_str("VM not initialized. Call paint() first"))?;
-        
+
         Ok(vm.snapshot().halted)
     }
 
@@ -1134,9 +1287,11 @@ impl Canvas {
     /// stack_size(): number
     #[wasm_bindgen]
     pub fn stack_size(&self) -> Result<usize, JsValue> {
-        let vm = self.vm.as_ref()
+        let vm = self
+            .vm
+            .as_ref()
             .ok_or_else(|| JsValue::from_str("VM not initialized. Call paint() first"))?;
-        
+
         Ok(vm.snapshot().stack.len())
     }
 
@@ -1144,9 +1299,11 @@ impl Canvas {
     /// get_steps(): number
     #[wasm_bindgen]
     pub fn get_steps(&self) -> Result<usize, JsValue> {
-        let vm = self.vm.as_ref()
+        let vm = self
+            .vm
+            .as_ref()
             .ok_or_else(|| JsValue::from_str("VM not initialized "))?;
-        
+
         Ok(vm.snapshot().steps)
     }
 
@@ -1154,10 +1311,12 @@ impl Canvas {
     /// reset(): void
     #[wasm_bindgen]
     pub fn reset(&mut self) -> Result<(), JsValue> {
-        let grid = self.grid.as_ref()
+        let grid = self
+            .grid
+            .as_ref()
             .ok_or_else(|| JsValue::from_str("No image loaded "))?
             .clone();
-        
+
         console_log!("Resetting VM...");
         let vm = BytecodeVm::from_grid(grid)
             .map_err(|e| JsValue::from_str(&format!("VM reset error: {}", e)))?;
@@ -1170,9 +1329,11 @@ impl Canvas {
     /// get_program_metadata(): JsProgramMetadata
     #[wasm_bindgen]
     pub fn get_program_metadata(&self) -> Result<JsValue, JsValue> {
-        let program = self.program.as_ref()
+        let program = self
+            .program
+            .as_ref()
             .ok_or_else(|| JsValue::from_str("No program compiled. Call paint() first"))?;
-        
+
         let metadata = JsProgramMetadata {
             codel_size: program.metadata.codel_size,
             image_width: program.metadata.image_width,
@@ -1180,7 +1341,7 @@ impl Canvas {
             grid_width: program.metadata.grid_width,
             grid_height: program.metadata.grid_height,
         };
-        
+
         serde_wasm_bindgen::to_value(&metadata)
             .map_err(|e| JsValue::from_str(&format!("Serialization error: {}", e)))
     }
@@ -1189,20 +1350,24 @@ impl Canvas {
     /// compile_to_bytecode(): BytecodeInstruction[]
     #[wasm_bindgen]
     pub fn compile_to_bytecode(&self) -> Result<JsValue, JsValue> {
-        let grid = self.grid.as_ref()
+        let grid = self
+            .grid
+            .as_ref()
             .ok_or_else(|| JsValue::from_str("No image loaded. Call paint() first"))?;
-        
-        console_log!("📝 Compiling bytecode...");
-        
+
+        console_log!("Compiling bytecode...");
+
         // Create compiler and compile
         let compiler = Compiler::new(grid.clone());
-        let program = compiler.compile()
+        let program = compiler
+            .compile()
             .map_err(|e| JsValue::from_str(&format!("Compilation error: {}", e)))?;
-        
+
         console_log!("Program has {} instructions ", program.instructions.len());
-        
+
         // Convert rich instructions to JS-friendly format
-        let instructions: Vec<BytecodeInstruction> = program.rich_instructions
+        let instructions: Vec<BytecodeInstruction> = program
+            .rich_instructions
             .iter()
             .enumerate()
             .map(|(i, rich_instr)| {
@@ -1228,7 +1393,7 @@ impl Canvas {
                     Instruction::Nop => ("Nop".to_string(), String::new()),
                     Instruction::Halt => ("Halt".to_string(), String::new()),
                 };
-                
+
                 // Convert debug info if present
                 let debug = rich_instr.debug.as_ref().map(|d| JsInstructionDebugInfo {
                     from_x: d.from_pos.0,
@@ -1241,14 +1406,18 @@ impl Canvas {
                     from_color: d.from_color.clone(),
                     to_color: d.to_color.clone(),
                 });
-                
-                let from_color = rich_instr.debug.as_ref()
+
+                let from_color = rich_instr
+                    .debug
+                    .as_ref()
                     .map(|d| d.from_color.clone())
                     .unwrap_or_default();
-                let to_color = rich_instr.debug.as_ref()
+                let to_color = rich_instr
+                    .debug
+                    .as_ref()
                     .map(|d| d.to_color.clone())
                     .unwrap_or(value);
-                
+
                 BytecodeInstruction {
                     index: i,
                     opcode: op_name,
@@ -1258,9 +1427,9 @@ impl Canvas {
                 }
             })
             .collect();
-        
+
         console_log!("Compiled {} instructions ", instructions.len());
-        
+
         serde_wasm_bindgen::to_value(&instructions)
             .map_err(|e| JsValue::from_str(&format!("Serialization error: {}", e)))
     }
@@ -1271,7 +1440,7 @@ impl Canvas {
 pub fn init() {
     #[cfg(feature = "console_error_panic_hook")]
     console_error_panic_hook::set_once();
-    
+
     console_log!("CanvasVM WASM initialized ");
 }
 
@@ -1279,7 +1448,6 @@ pub fn init() {
 mod tests {
     use super::*;
     use wasm_bindgen_test::*;
-    use js_sys;
 
     wasm_bindgen_test::wasm_bindgen_test_configure!(run_in_browser);
 
@@ -1292,14 +1460,14 @@ mod tests {
     #[wasm_bindgen_test]
     fn test_canvas_paint() {
         let mut canvas = Canvas::new();
-        
+
         // Crear una imagen simple de 2x1 píxeles
         // Rojo claro → Amarillo claro (hue +1, light 0 → Add)
         let rgba = vec![
             0xFF, 0xC0, 0xC0, 0xFF, // (0,0) rojo claro
             0xFF, 0xFF, 0xC0, 0xFF, // (1,0) amarillo claro
         ];
-        
+
         canvas.paint(&rgba, 2, 1).unwrap();
         assert!(canvas.vm.is_some());
     }
@@ -1307,15 +1475,12 @@ mod tests {
     #[wasm_bindgen_test]
     fn test_canvas_snapshot() {
         let mut canvas = Canvas::new();
-        
-        let rgba = vec![
-            0xFF, 0xC0, 0xC0, 0xFF,
-            0xFF, 0xFF, 0xC0, 0xFF,
-        ];
-        
+
+        let rgba = vec![0xFF, 0xC0, 0xC0, 0xFF, 0xFF, 0xFF, 0xC0, 0xFF];
+
         canvas.paint(&rgba, 2, 1).unwrap();
         let snapshot = canvas.snapshot();
-        
+
         // El snapshot debe ser serializable
         assert!(snapshot.is_ok());
     }
@@ -1323,15 +1488,12 @@ mod tests {
     #[wasm_bindgen_test]
     fn test_canvas_reset() {
         let mut canvas = Canvas::new();
-        
-        let rgba = vec![
-            0xFF, 0xC0, 0xC0, 0xFF,
-            0xFF, 0xFF, 0xC0, 0xFF,
-        ];
-        
+
+        let rgba = vec![0xFF, 0xC0, 0xC0, 0xFF, 0xFF, 0xFF, 0xC0, 0xFF];
+
         canvas.paint(&rgba, 2, 1).unwrap();
         let _ = canvas.reset();
-        
+
         // Después del reset, el VM debe existir y estar en estado inicial
         assert!(canvas.vm.is_some());
     }
@@ -1339,19 +1501,18 @@ mod tests {
     #[wasm_bindgen_test]
     fn test_canvas_stroke() {
         let mut canvas = Canvas::new();
-        
+
         // Crear una imagen que genere instrucciones Push
         let rgba = vec![
             0xFF, 0xC0, 0xC0, 0xFF, // rojo claro (2 píxeles)
-            0xFF, 0xC0, 0xC0, 0xFF,
-            0xFF, 0xFF, 0xC0, 0xFF, // amarillo claro
+            0xFF, 0xC0, 0xC0, 0xFF, 0xFF, 0xFF, 0xC0, 0xFF, // amarillo claro
         ];
-        
+
         canvas.paint(&rgba, 3, 1).unwrap();
-        
+
         // Ejecutar un paso
         let result = canvas.stroke();
-        
+
         // stroke() puede retornar error si el VM está detenido o no puede moverse
         // pero debe retornar un resultado
         assert!(result.is_ok() || result.is_err());
@@ -1360,21 +1521,21 @@ mod tests {
     #[wasm_bindgen_test]
     fn test_canvas_compile_to_bytecode() {
         let mut canvas = Canvas::new();
-        
+
         let rgba = vec![
             0xFF, 0xC0, 0xC0, 0xFF, // rojo claro
             0xFF, 0xFF, 0xC0, 0xFF, // amarillo claro
         ];
-        
+
         canvas.paint(&rgba, 2, 1).unwrap();
-        
+
         // Obtener bytecode compilado
         let bytecode = canvas.compile_to_bytecode().unwrap();
         let bytecode_array: js_sys::Array = bytecode.into();
-        
+
         // Debe tener al menos una instrucción
         assert!(bytecode_array.length() > 0);
-        
+
         // Verificar que las instrucciones tienen la estructura correcta
         if bytecode_array.length() > 0 {
             let first_instr = bytecode_array.get(0);
@@ -1385,14 +1546,11 @@ mod tests {
     #[wasm_bindgen_test]
     fn test_canvas_ink_string() {
         let mut canvas = Canvas::new();
-        
-        let rgba = vec![
-            0xFF, 0xC0, 0xC0, 0xFF,
-            0xFF, 0xFF, 0xC0, 0xFF,
-        ];
-        
+
+        let rgba = vec![0xFF, 0xC0, 0xC0, 0xFF, 0xFF, 0xFF, 0xC0, 0xFF];
+
         canvas.paint(&rgba, 2, 1).unwrap();
-        
+
         // Obtener output inicial (debe estar vacío)
         let output = canvas.ink_string().unwrap();
         assert_eq!(output, "");
@@ -1401,27 +1559,26 @@ mod tests {
     #[wasm_bindgen_test]
     fn test_snapshot_and_stroke_flow() {
         let mut canvas = Canvas::new();
-        
+
         // Crear imagen con múltiples bloques
         let rgba = vec![
             0xFF, 0xC0, 0xC0, 0xFF, // rojo claro (bloque 2)
-            0xFF, 0xC0, 0xC0, 0xFF,
-            0xFF, 0xFF, 0xC0, 0xFF, // amarillo claro
+            0xFF, 0xC0, 0xC0, 0xFF, 0xFF, 0xFF, 0xC0, 0xFF, // amarillo claro
         ];
-        
+
         canvas.paint(&rgba, 3, 1).unwrap();
-        
+
         // 1. Snapshot inicial
         let initial = canvas.snapshot().unwrap();
         assert!(initial.is_object());
-        
+
         // 2. Ejecutar stroke
         let _ = canvas.stroke();
-        
+
         // 3. Snapshot después de stroke
         let after = canvas.snapshot().unwrap();
         assert!(after.is_object());
-        
+
         // 4. Ink string
         let output = canvas.ink_string().unwrap();
         // Output puede estar vacío si no hay OutChar/OutNumber
@@ -1431,26 +1588,24 @@ mod tests {
     #[wasm_bindgen_test]
     fn test_reset_functionality() {
         let mut canvas = Canvas::new();
-        
+
         let rgba = vec![
-            0xFF, 0xC0, 0xC0, 0xFF,
-            0xFF, 0xC0, 0xC0, 0xFF,
-            0xFF, 0xFF, 0xC0, 0xFF,
+            0xFF, 0xC0, 0xC0, 0xFF, 0xFF, 0xC0, 0xC0, 0xFF, 0xFF, 0xFF, 0xC0, 0xFF,
         ];
-        
+
         canvas.paint(&rgba, 3, 1).unwrap();
-        
+
         // Ejecutar algunos pasos
         for _ in 0..3 {
             let _ = canvas.stroke();
         }
-        
+
         // Reset
         canvas.reset().unwrap();
-        
+
         // El VM debe estar reiniciado
         assert!(canvas.vm.is_some());
-        
+
         // Debería poder ejecutar de nuevo
         let result = canvas.stroke();
         assert!(result.is_ok() || result.is_err());
@@ -1459,22 +1614,20 @@ mod tests {
     #[wasm_bindgen_test]
     fn test_multiple_strokes_until_halt() {
         let mut canvas = Canvas::new();
-        
+
         // Usar una imagen más grande para tener más operaciones
         let rgba = vec![
             0xFF, 0xC0, 0xC0, 0xFF, // rojo claro (bloque de tamaño 4)
-            0xFF, 0xC0, 0xC0, 0xFF,
-            0xFF, 0xC0, 0xC0, 0xFF,
-            0xFF, 0xC0, 0xC0, 0xFF,
-            0xFF, 0xFF, 0xC0, 0xFF, // amarillo claro
+            0xFF, 0xC0, 0xC0, 0xFF, 0xFF, 0xC0, 0xC0, 0xFF, 0xFF, 0xC0, 0xC0, 0xFF, 0xFF, 0xFF,
+            0xC0, 0xFF, // amarillo claro
         ];
-        
+
         canvas.paint(&rgba, 5, 1).unwrap();
-        
+
         // Ejecutar múltiples pasos hasta que se detenga
         let max_steps = 50;
         let mut step_count = 0;
-        
+
         for _ in 0..max_steps {
             match canvas.stroke() {
                 Ok(_) => {
@@ -1485,7 +1638,7 @@ mod tests {
                 Err(_) => break,
             }
         }
-        
+
         // El test pasa si no hay panic, incluso si no ejecuta ningún paso
         // (Algunos programas pueden detenerse inmediatamente)
         assert!(step_count >= 0, "Test should complete without panic");
@@ -1501,28 +1654,27 @@ mod tests {
         // 5. snapshot() después de cada stroke - actualizar UI
         // 6. ink_string() - mostrar output
         // 7. reset() - reiniciar
-        
+
         let mut canvas = Canvas::new();
-        
+
         let rgba = vec![
             0xFF, 0xC0, 0xC0, 0xFF, // rojo (3 píxeles)
-            0xFF, 0xC0, 0xC0, 0xFF,
-            0xFF, 0xC0, 0xC0, 0xFF,
-            0xFF, 0xFF, 0xC0, 0xFF, // amarillo
+            0xFF, 0xC0, 0xC0, 0xFF, 0xFF, 0xC0, 0xC0, 0xFF, 0xFF, 0xFF, 0xC0,
+            0xFF, // amarillo
         ];
-        
+
         // 1. paint()
         canvas.paint(&rgba, 4, 1).unwrap();
-        
+
         // 2. compile_to_bytecode()
         let bytecode = canvas.compile_to_bytecode().unwrap();
         let bytecode_array: js_sys::Array = bytecode.into();
         assert!(bytecode_array.length() > 0, "Bytecode should not be empty");
-        
+
         // 3. snapshot() inicial
         let snapshot = canvas.snapshot().unwrap();
         assert!(snapshot.is_object());
-        
+
         // 4-5. stroke() + snapshot() loop (simula play o step)
         for _ in 0..5 {
             if canvas.stroke().is_ok() {
@@ -1531,12 +1683,12 @@ mod tests {
                 break;
             }
         }
-        
+
         // 6. ink_string()
         let output = canvas.ink_string().unwrap();
         // Solo verificamos que no haga panic
         let _ = output;
-        
+
         // 7. reset()
         canvas.reset().unwrap();
         assert!(canvas.vm.is_some());

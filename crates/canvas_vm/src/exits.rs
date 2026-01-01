@@ -87,7 +87,7 @@ mod tests {
         assert_eq!(Direction::Down.rotate_clockwise(1), Direction::Left);
         assert_eq!(Direction::Left.rotate_clockwise(1), Direction::Up);
         assert_eq!(Direction::Up.rotate_clockwise(1), Direction::Right);
-        
+
         assert_eq!(Direction::Right.rotate_clockwise(4), Direction::Right);
         assert_eq!(Direction::Right.rotate_clockwise(-1), Direction::Up);
     }
@@ -109,11 +109,14 @@ mod tests {
     #[test]
     fn test_position_step() {
         let pos = Position::new(5, 5);
-        assert_eq!(pos.step(Direction::Right, 10, 10), Some(Position::new(6, 5)));
+        assert_eq!(
+            pos.step(Direction::Right, 10, 10),
+            Some(Position::new(6, 5))
+        );
         assert_eq!(pos.step(Direction::Down, 10, 10), Some(Position::new(5, 6)));
         assert_eq!(pos.step(Direction::Left, 10, 10), Some(Position::new(4, 5)));
         assert_eq!(pos.step(Direction::Up, 10, 10), Some(Position::new(5, 4)));
-        
+
         // Fuera de límites
         let edge = Position::new(0, 0);
         assert_eq!(edge.step(Direction::Left, 10, 10), None);

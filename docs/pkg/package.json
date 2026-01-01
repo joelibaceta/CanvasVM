@@ -1,15 +1,37 @@
 {
-  "name": "canvas_wasm",
+  "name": "canvas-vm-wasm",
   "type": "module",
+  "collaborators": [
+    "Joel Ibaceta <mail@joelibaceta.com>"
+  ],
+  "description": "A serious Piet runtime for JavaScript/TypeScript. Execute visual programs (images as code) with WebAssembly performance. Includes compiler, debugger, and step execution.",
   "version": "0.1.0",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/joelibaceta/CanvasVM"
+  },
   "files": [
     "canvas_wasm_bg.wasm",
     "canvas_wasm.js",
-    "canvas_wasm.d.ts"
+    "canvas_wasm.d.ts",
+    "canvas_wasm_bg.wasm.d.ts"
   ],
   "main": "canvas_wasm.js",
+  "homepage": "https://canvasvm.com",
   "types": "canvas_wasm.d.ts",
   "sideEffects": [
     "./snippets/*"
+  ],
+  "keywords": [
+    "piet",
+    "vm",
+    "interpreter",
+    "esoteric",
+    "compiler",
+    "webassembly",
+    "wasm",
+    "visual-programming",
+    "runtime"
   ]
 }

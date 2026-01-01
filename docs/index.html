@@ -14,10 +14,10 @@
                 extend: {
                     colors: {
                         "primary": "#000000",
-                        "mondrian-red": "#e60000",
-                        "mondrian-yellow": "#ffde00",
+                        "mondrian-red": "#d32f2f",
+                        "mondrian-yellow": "#fbc02d",
                         "mondrian-white": "#ffffff",
-                        "mondrian-blue": "#0000e6",
+                        "mondrian-blue": "#1565c0",
                         "background-light": "#ffffff",
                     },
                     fontFamily: {
@@ -85,32 +85,26 @@
 <div class="min-h-screen w-full grid grid-cols-1 lg:grid-cols-12 gap-2 bg-black border-4 border-black">
 <header class="col-span-1 lg:col-span-12 bg-white px-6 py-4 flex items-center justify-between">
 <div class="flex items-center gap-3">
-<div class="w-8 h-8 bg-mondrian-red flex items-center justify-center border border-black">
-<span class="material-symbols-outlined text-white text-[20px]">palette</span>
-</div>
+<img src="images/LogoSmall.png" alt="Canvas VM Logo" class="w-8 h-8 object-contain">
 <h1 class="text-xl font-bold tracking-tight text-black">Canvas VM</h1>
 </div>
 <nav class="hidden md:flex items-center gap-8">
-<a class="text-sm font-bold text-gray-600 hover:text-black transition-colors uppercase tracking-wide" href="#">Documentation</a>
-<a class="text-sm font-bold text-gray-600 hover:text-black transition-colors uppercase tracking-wide" href="#">Examples</a>
-<a class="text-sm font-bold text-gray-600 hover:text-black transition-colors uppercase tracking-wide" href="#">GitHub</a>
+<a class="text-sm font-bold text-gray-600 hover:text-black transition-colors uppercase tracking-wide" href="https://github.com/joelibaceta/CanvasVM/wiki" target="_blank" rel="noopener noreferrer">Documentation</a>
+<a class="text-sm font-bold text-gray-600 hover:text-black transition-colors uppercase tracking-wide" href="examples.html">Examples</a>
+<a class="text-sm font-bold text-gray-600 hover:text-black transition-colors uppercase tracking-wide" href="https://github.com/joelibaceta/CanvasVM" target="_blank" rel="noopener noreferrer">GitHub</a>
 </nav>
-<button class="bg-black hover:bg-gray-800 text-white text-sm font-bold py-2 px-4 transition-colors flex items-center gap-2 shadow-[4px_4px_0px_0px_rgba(0,0,0,0.2)]">
-<span class="material-symbols-outlined text-[18px]">terminal</span>
-<span>CLI Tool</span>
-</button>
 </header>
 <div class="col-span-1 lg:col-span-8 bg-mondrian-blue p-8 lg:p-20 flex flex-col justify-center relative overflow-hidden group">
 <div class="relative z-10 max-w-2xl">
 <h2 class="text-6xl lg:text-8xl font-black tracking-tighter leading-[0.9] mb-6 text-white">
-            CANVAS
-        </h2>
+            CANVAS VM
+        </h2> 
 <p class="text-xl lg:text-2xl font-medium text-white mb-10 max-w-lg leading-relaxed">
             Upload a painting. Run a program. <br/>
-<span class="text-blue-100 text-base mt-2 block font-normal font-body">The esoteric runtime for Piet enthusiasts designed for precision and aesthetics.</span>
+<span class="text-blue-100 text-base mt-2 block font-normal font-body">A serious virtual machine and JIT compiler forN Piet programming language.</span>
 </p>
 <div class="flex flex-wrap gap-4">
-<button class="h-12 px-6 bg-white text-black hover:bg-gray-200 font-bold flex items-center gap-2 transition-transform active:scale-95 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
+<button onclick="document.getElementById('ide-section').scrollIntoView({behavior: 'smooth'})" class="h-12 px-6 bg-white text-black hover:bg-gray-200 font-bold flex items-center gap-2 transition-transform active:scale-95 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] cursor-pointer">
 <span>Try it now</span>
 <span class="material-symbols-outlined text-[20px]">arrow_forward</span>
 </button>
@@ -121,60 +115,159 @@
 </div>
 </div>
 <div class="col-span-1 lg:col-span-4 grid grid-rows-2 gap-2 bg-black h-full min-h-[400px]">
-<div class="bg-white relative overflow-hidden flex items-center justify-center group">
-<div class="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1550684848-fac1c5b4e853?q=80&amp;w=800&amp;auto=format&amp;fit=crop')] bg-cover bg-center opacity-80 grayscale mix-blend-multiply transition-transform duration-700 group-hover:scale-105"></div>
-<span class="relative z-10 bg-white text-black px-3 py-1 text-xs font-mono border-2 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]">hello_world.png</span>
+<div class="bg-white relative overflow-hidden flex items-center justify-center p-8 border-2 border-black">
+<p class="text-xl font-bold text-black leading-relaxed text-center max-w-sm">
+Because code deserves to be art and art deserves to run flawlessly.
+</p>
 </div>
 <div class="grid grid-cols-2 gap-2 bg-black h-full">
-<div class="bg-mondrian-yellow flex flex-col justify-between p-6 text-black">
-<span class="material-symbols-outlined text-[32px]">speed</span>
-<span class="font-bold text-lg leading-none tracking-tight">Fast<br/>Execution</span>
+<div class="bg-mondrian-yellow p-4 text-black flex flex-col gap-2">
+<div class="flex items-center gap-2 mb-2">
+<span class="material-symbols-outlined text-[28px]">bolt</span>
+<span class="font-bold text-base tracking-tight">Ultra Fast</span>
 </div>
-<div class="bg-mondrian-red flex flex-col justify-between p-6 text-white">
-<span class="material-symbols-outlined text-[32px]">grid_on</span>
-<span class="font-bold text-lg leading-none tracking-tight">Pixel<br/>Perfect</span>
+<ul class="text-sm font-body leading-relaxed text-gray-800 space-y-1 list-disc list-inside">
+<li>Bytecode compilation</li>
+<li>WebAssembly JIT</li>
+<li>Optimized traversal</li>
+<li>Native binaries</li>
+</ul>
+</div>
+<div class="bg-white p-4 text-black flex flex-col gap-2 border-2 border-black">
+<div class="flex items-center gap-2 mb-2">
+<span class="material-symbols-outlined text-[28px] text-mondrian-red">engineering</span>
+<span class="font-bold text-base tracking-tight">Serious VM</span>
+</div>
+<ul class="text-sm font-body leading-relaxed text-gray-700 space-y-1 list-disc list-inside">
+<li>Bytecode IR layer</li>
+<li>Step debugger</li>
+<li>Breakpoints</li> 
+<li>Watchdog system</li>
+<li>I/O buffering</li>
+</ul>
 </div>
 </div>
 </div>
 <div class="col-span-1 lg:col-span-4 bg-white p-8 flex flex-col gap-4 hover:bg-gray-50 transition-colors border-l-8 border-black">
-<div class="w-12 h-12 bg-black text-white flex items-center justify-center mb-2">
-<span class="material-symbols-outlined">bolt</span>
+<div class="flex items-center gap-3 mb-2">
+<div class="w-10 h-10 bg-black text-white flex items-center justify-center font-bold text-lg">1</div>
+<h3 class="text-xl font-bold text-black">Load your program</h3>
 </div>
-<h3 class="text-xl font-bold text-black">Instant runtime</h3>
+<div class="bg-gray-100 p-3 border border-gray-300 mb-2 flex flex-col items-center justify-center gap-2">
+<img src="images/HelloWorld3.png" alt="HelloWorld3.png" class="w-full max-w-[150px] h-auto" style="image-rendering: pixelated;">
+<div class="text-[10px] text-gray-500 font-mono">HelloWorld3.png (25x7px)</div>
+</div>
 <p class="text-gray-600 text-sm leading-relaxed font-body">
-        Zero-setup environment running directly in WASM. Drag, drop, and watch your pixels execute logic instantly.
+        Upload any Piet image. The VM automatically detects codel size and validates the color palette.
     </p>
 </div>
 <div class="col-span-1 lg:col-span-4 bg-white p-8 flex flex-col gap-4 hover:bg-gray-50 transition-colors border-l-8 border-mondrian-yellow">
-<div class="w-12 h-12 bg-mondrian-yellow text-black border border-black flex items-center justify-center mb-2">
-<span class="material-symbols-outlined">animation</span>
+<div class="flex items-center gap-3 mb-2">
+<div class="w-10 h-10 bg-mondrian-yellow text-black border border-black flex items-center justify-center font-bold text-lg">2</div>
+<h3 class="text-xl font-bold text-black">Compile to bytecode</h3>
 </div>
-<h3 class="text-xl font-bold text-black">See code move</h3>
+<div class="bg-gray-100 p-3 border border-gray-300 font-mono text-[10px] leading-relaxed mb-2">
+<div class="text-gray-500 mb-1">Universal bytecode (21 ops)</div>
+<div class="text-gray-700">0: Push(72)<br/>1: OutChar<br/>2: Push(101)<br/>3: OutChar<br/><span class="text-gray-400">...</span></div>
+</div>
 <p class="text-gray-600 text-sm leading-relaxed font-body">
-        Visual debugger highlights the current codel pointer (DP) and codel chooser (CC) as it traverses your artwork.
+        Piet artwork is compiled to portable bytecode instructions. Fast, deterministic, and platform-independent.
     </p>
 </div>
 <div class="col-span-1 lg:col-span-4 bg-white p-8 flex flex-col gap-4 hover:bg-gray-50 transition-colors border-l-8 border-mondrian-red">
-<div class="w-12 h-12 bg-mondrian-red text-white border border-black flex items-center justify-center mb-2">
-<span class="material-symbols-outlined">public</span>
+<div class="flex items-center gap-3 mb-2">
+<div class="w-10 h-10 bg-mondrian-red text-white border border-black flex items-center justify-center font-bold text-lg">3</div>
+<h3 class="text-xl font-bold text-black">Run at native speed</h3>
 </div>
-<h3 class="text-xl font-bold text-black">Built for the wild</h3>
+<div class="bg-gray-900 p-3 border border-gray-700 font-mono text-[9px] leading-relaxed mb-2 text-green-400">
+<div class="text-gray-500 mb-1">JIT → x86_64 machine code</div>
+<div>48 89 e5 48 83 ec 10<br/>89 7d fc 8b 45 fc 89<br/>c7 e8 2a 00 00 00 48<br/><span class="text-gray-600">...</span></div>
+</div>
+<div class="bg-gray-100 p-3 border border-gray-300 font-mono text-xs">
+<div class="text-green-600 font-bold mb-1">Output: Hello World!</div>
+<div class="text-gray-500 text-[10px]">Completed in 20 steps</div>
+<div class="text-gray-500 text-[10px]">Time: 104µs | Speed: 19 ops/s</div>
+</div>
 <p class="text-gray-600 text-sm leading-relaxed font-body">
-        Supports all major Piet specifications including npiet and PietDev. Handles complex color cycles gracefully.
+        JIT-ready to run in your browser instantly. Can also be compiled to native x86/ARM binaries for desktop execution.
     </p>
 </div>
-<div class="col-span-1 lg:col-span-12 bg-mondrian-blue pt-12 pb-6 px-6 lg:px-12 flex flex-col lg:flex-row items-start lg:items-end justify-between gap-4">
+
+<!-- How to Use Section -->
+<div class="col-span-1 lg:col-span-1 bg-mondrian-red border-t-4 border-black flex items-center justify-center">
+<h2 class="text-4xl font-black text-white uppercase tracking-wider whitespace-nowrap py-8" style="writing-mode: vertical-rl; transform: rotate(180deg);">How to Use</h2>
+</div>
+
+<div class="col-span-1 lg:col-span-5 bg-white p-8 lg:p-12 border-t-4 border-black border-r-2">
+<div class="mb-6">
+<div class="flex items-center gap-3 mb-4">
+<span class="material-symbols-outlined text-[36px] text-mondrian-blue">language</span>
+<h3 class="text-2xl font-black text-black">WebAssembly</h3>
+</div>
+<p class="text-gray-600 text-sm font-body mb-6">Import and use in your JavaScript/TypeScript projects</p>
+</div>
+<div class="bg-gray-800 border-2 border-gray-600 p-3 mb-4">
+<div class="text-gray-400 text-[10px] font-mono mb-2">INSTALLATION</div>
+<div class="text-green-400 font-mono text-xs">$ npm install canvas-vm-wasm</div>
+</div>
+<div class="bg-gray-100 border-2 border-gray-300 p-4 font-mono text-xs">
+<div class="text-gray-500 mb-2">// main.js</div>
+<div class="text-gray-800 leading-relaxed">
+<span class="text-purple-600">import</span> init, { Canvas } <span class="text-purple-600">from</span> <span class="text-green-600">'canvas-vm-wasm'</span>;<br/><br/>
+<span class="text-gray-500">// Initialize WASM</span><br/>
+<span class="text-purple-600">await</span> <span class="text-blue-600">init</span>();<br/><br/>
+<span class="text-gray-500">// Create and run</span><br/>
+<span class="text-purple-600">const</span> canvas = <span class="text-purple-600">new</span> <span class="text-blue-600">Canvas</span>(imageData, w, h, codel);<br/>
+canvas.<span class="text-blue-600">compile</span>();<br/>
+canvas.<span class="text-blue-600">run</span>();<br/>
+<span class="text-purple-600">console</span>.<span class="text-blue-600">log</span>(canvas.<span class="text-blue-600">output</span>());
+</div>
+</div>
+</div>
+
+<div class="col-span-1 lg:col-span-6 bg-black p-8 lg:p-12 border-t-4 border-black">/>
+<div class="mb-6">
+<div class="flex items-center gap-3 mb-4">
+<span class="material-symbols-outlined text-[36px] text-green-400">terminal</span>
+<h3 class="text-2xl font-black text-white">Command Line</h3>
+</div>
+<p class="text-gray-400 text-sm font-body mb-6">Run programs or compile to bytecode</p>
+</div>
+<div class="bg-gray-900 border-2 border-green-400 p-3 mb-4">
+<div class="text-gray-400 text-[10px] font-mono mb-2">INSTALLATION</div>
+<div class="text-green-400 font-mono text-xs">$ curl -sSL www.canvasvm.com/install.sh | bash</div>
+</div>
+<div class="bg-gray-900 border-2 border-green-400 p-4 font-mono text-xs">
+<div class="text-gray-500 mb-2"># Run a Piet program</div>
+<div class="text-green-400 leading-relaxed mb-4">
+$ piet run HelloWorld.png<br/>
+<span class="text-white">Hello World!</span>
+</div>
+<div class="text-gray-500 mb-2"># Compile to bytecode</div>
+<div class="text-green-400 leading-relaxed mb-4">
+$ pietc compile HelloWorld.png -o hello.cvm<br/>
+<span class="text-gray-400">[OK]</span> <span class="text-white">Compiled 21 instructions</span>
+</div>
+<div class="text-gray-500 mb-2"># Execute bytecode</div>
+<div class="text-green-400 leading-relaxed">
+$ piet exec hello.cvm<br/>
+<span class="text-white">Hello World!</span>
+</div>
+</div>
+</div>
+
+<div id="ide-section" class="col-span-1 lg:col-span-12 bg-mondrian-blue pt-12 pb-6 px-6 lg:px-12 flex flex-col lg:flex-row items-start lg:items-end justify-between gap-4">
 <div>
-<h2 class="text-3xl font-bold mb-2 text-white">Try Canvas in your browser</h2>
-<p class="text-blue-100 font-body">The sandbox environment is ready. No installation required.</p>
+<h2 class="text-3xl font-bold mb-2 text-white">Try Piet in your browser</h2>
+<p class="text-blue-100 font-body">Zero installation. Runs natively on WebAssembly.</p>
 </div>
 <div class="flex gap-2">
-<span class="px-2 py-1 bg-blue-900/50 border border-blue-400 text-xs text-blue-100 font-mono">v1.2.4-stable</span>
+<span class="px-2 py-1 bg-blue-900/50 border border-blue-400 text-xs text-blue-100 font-mono">v1.0.0</span>
 <span class="px-2 py-1 bg-green-100 text-green-700 border border-green-200 text-xs font-mono flex items-center gap-1"><span class="w-1.5 h-1.5 rounded-full bg-green-500"></span> Online</span>
 </div>
 </div>
-<div class="col-span-1 lg:col-span-12 grid grid-cols-1 lg:grid-cols-12 gap-2 bg-black h-auto lg:h-[600px]">
-<div class="col-span-1 lg:col-span-3 bg-white flex flex-col h-full overflow-hidden">
+<div class="col-span-1 lg:col-span-12 grid grid-cols-1 lg:grid-cols-12 gap-0 bg-black" id="ide" style="height: 800px;">
+<div class="col-span-1 lg:col-span-3 bg-white flex flex-col h-full overflow-hidden border-r-2 border-black">
 <div class="h-14 bg-mondrian-yellow border-b-4 border-black px-4 flex items-center justify-between flex-shrink-0">
 <h3 class="font-bold text-black uppercase tracking-wider text-sm flex items-center gap-2">
 <span class="material-symbols-outlined text-[20px]">terminal</span>
@@ -201,14 +294,14 @@ No program loaded. Upload a Piet image to compile.
 </table>
 </div>
 </div>
-<div class="col-span-1 lg:col-span-9 bg-white relative flex flex-col">
-<div class="h-14 border-b-4 border-black bg-white flex items-center justify-between px-4">
+<div class="col-span-1 lg:col-span-9 bg-white relative flex flex-col h-full">
+<div class="h-14 border-b-4 border-black bg-white flex items-center justify-between px-4 flex-shrink-0">
 <div class="flex items-center gap-2">
-<button class="w-9 h-9 flex items-center justify-center border border-transparent hover:border-black hover:bg-gray-100 text-black transition-all" title="Play">
+<button id="run-fast-btn" class="w-9 h-9 flex items-center justify-center border border-transparent hover:border-black hover:bg-gray-100 text-green-600 transition-all" title="Run">
 <span class="material-symbols-outlined">play_arrow</span>
 </button>
-<button id="run-fast-btn" class="w-9 h-9 flex items-center justify-center border border-transparent hover:border-black hover:bg-gray-100 text-yellow-500 transition-all" title="Run Fast (Native)">
-<span class="material-symbols-outlined">bolt</span>
+<button class="w-9 h-9 flex items-center justify-center border border-transparent hover:border-black hover:bg-gray-100 text-mondrian-red transition-all" title="Debug">
+<span class="material-symbols-outlined">bug_report</span>
 </button>
 <button class="w-9 h-9 flex items-center justify-center border border-transparent hover:border-black hover:bg-gray-100 text-black transition-all" title="Step">
 <span class="material-symbols-outlined">skip_next</span>
@@ -256,7 +349,7 @@ No program loaded. Upload a Piet image to compile.
 </div>
 </div>
 <!-- File Tab Bar -->
-<div id="file-tab-bar" class="h-9 bg-gray-200 border-b border-gray-300 flex items-end px-1" style="display: none;">
+<div id="file-tab-bar" class="h-9 bg-gray-200 border-b border-gray-300 flex items-end px-1 flex-shrink-0" style="display: none;">
 <div id="file-tab" class="h-8 px-3 bg-white border border-b-0 border-gray-300 flex items-center gap-2 relative top-px">
 <span class="material-symbols-outlined text-[14px] text-gray-500">image</span>
 <span id="file-tab-name" class="text-xs font-mono text-gray-700 max-w-[200px] truncate">untitled.png</span>
@@ -282,7 +375,7 @@ No program loaded. Upload a Piet image to compile.
 </div>
 </div>
 <!-- Status Bar -->
-<div id="status-bar" class="h-8 border-t-2 border-black bg-gray-100 px-4 flex items-center justify-between text-xs font-mono">
+<div id="status-bar" class="h-8 border-t-2 border-black bg-gray-100 px-4 flex items-center justify-between text-xs font-mono flex-shrink-0">
 <div class="flex items-center gap-4">
 <div class="flex items-center gap-2">
 <span id="status-indicator" class="w-2 h-2 rounded-full bg-gray-400"></span>
@@ -318,7 +411,7 @@ No program loaded. Upload a Piet image to compile.
 <span id="mode-badge" class="px-2 py-0.5 bg-gray-200 text-gray-600 text-[10px] font-bold">IDLE</span>
 </div>
 </div>
-<div id="terminal-output" class="h-32 border-t-4 border-black bg-white p-3 font-mono text-xs overflow-y-auto">
+<div id="terminal-output" class="h-80 border-t-4 border-black bg-white p-3 pb-8 font-mono text-xs overflow-y-auto flex-shrink-0">
 <div class="text-gray-400 mb-1">Canvas VM initialized. Ready for input.</div>
 <div class="text-black font-bold">&gt; _</div>
 </div>
@@ -356,11 +449,6 @@ Submit
         Compile art. <br/>
         Execute code.
     </h2>
-<div class="flex gap-6 mt-4">
-<a class="text-black font-bold border-b-2 border-black hover:opacity-70 transition-opacity" href="#">Privacy</a>
-<a class="text-black font-bold border-b-2 border-black hover:opacity-70 transition-opacity" href="#">Terms</a>
-<a class="text-black font-bold border-b-2 border-black hover:opacity-70 transition-opacity" href="#">Twitter</a>
-</div>
 <p class="text-black/60 text-xs font-mono mt-12">
         © 2023 Canvas VM. Inspired by Piet Mondrian.
     </p>

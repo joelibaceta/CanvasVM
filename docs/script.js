@@ -1,15 +1,19 @@
 // Wait for DOM to be ready
 document.addEventListener('DOMContentLoaded', async function() {
 
+// Check for program query parameter
+const urlParams = new URLSearchParams(window.location.search);
+const programPath = urlParams.get('program');
+
 // Load WASM module
 let wasm;
 try {
     const wasmModule = await import('./pkg/canvas_wasm.js');
     await wasmModule.default();
     wasm = wasmModule;
-    logToTerminal('✓ WASM module loaded successfully', 'output');
+    logToTerminal('WASM module loaded successfully', 'output');
 } catch (error) {
-    logToTerminal(`✗ Failed to load WASM: ${error.message}`, 'error');
+    logToTerminal(`Failed to load WASM: ${error.message}`, 'error');
     logToTerminal('Running in mock mode', 'output');
 }
 
@@ -232,21 +236,24 @@ function logToTerminal(message, type = 'output') {
     const line = document.createElement('div');
     
     if (type === 'prompt') {
-        line.className = 'text-black font-bold mb-1';
+        line.className = 'text-black font-bold mb-2';
         line.textContent = `> ${message}`;
     } else if (type === 'error') {
-        line.className = 'text-red-600 mb-1';
+        line.className = 'text-red-600 mb-2';
         line.textContent = message;
     } else if (type === 'program-output') {
-        line.className = 'text-green-600 font-bold mb-1 bg-green-50 px-2 py-1 rounded';
+        line.className = 'text-green-600 font-bold mb-2 bg-green-50 px-2 py-1.5 break-words';
         line.textContent = message;
     } else {
-        line.className = 'text-gray-400 mb-1';
+        line.className = 'text-gray-400 mb-2';
         line.textContent = message;
     }
     
     terminal.appendChild(line);
-    terminal.scrollTop = terminal.scrollHeight;
+    // Force scroll to bottom after DOM update
+    requestAnimationFrame(() => {
+        terminal.scrollTop = terminal.scrollHeight;
+    });
 }
 
 window.clearTerminal = function() {
@@ -286,7 +293,7 @@ function compileImageToBytecode(imageData) {
     logToTerminal('Loading image into VM...', 'prompt');
     
     if (!wasm) {
-        logToTerminal('✗ WASM not loaded, cannot compile', 'error');
+        logToTerminal('[ERROR] WASM not loaded, cannot compile', 'error');
         return null;
     }
     
@@ -322,7 +329,7 @@ function compileImageToBytecode(imageData) {
         const gridWidth = Math.floor(width / effectiveSize);
         const gridHeight = Math.floor(height / effectiveSize);
         
-        logToTerminal(`✓ Program loaded: ${width}x${height}px → ${gridWidth}x${gridHeight} codels`, 'output');
+        logToTerminal(`[OK] Program loaded: ${width}x${height}px → ${gridWidth}x${gridHeight} codels`, 'output');
         
         // Compile to bytecode
         try {
@@ -330,7 +337,7 @@ function compileImageToBytecode(imageData) {
             if (bytecode && bytecode.length > 0) {
                 program = bytecode;
                 updateBytecodeTable(bytecode);
-                logToTerminal(`✓ Compiled ${bytecode.length} instructions`, 'output');
+                logToTerminal(`[OK] Compiled ${bytecode.length} instructions`, 'output');
             } else {
                 logToTerminal('ℹ Bytecode compilation returned empty (feature in progress)', 'prompt');
                 program = [];
@@ -346,7 +353,7 @@ function compileImageToBytecode(imageData) {
         
         return program;
     } catch (error) {
-        logToTerminal(`✗ Failed to load program: ${error.message}`, 'error');
+        logToTerminal(`[ERROR] Failed to load program: ${error.message}`, 'error');
         console.error('Load error:', error);
         return null;
     }
@@ -601,7 +608,7 @@ if (canvas && fileInput) {
                 if (uploadArea) uploadArea.style.display = 'none';
                 showFileTab(file.name);
                 
-                logToTerminal(`✓ Loaded: ${img.width}x${img.height} (${img.width * img.height} codels)`, 'prompt');
+                logToTerminal(`[OK] Loaded: ${img.width}x${img.height} (${img.width * img.height} codels)`, 'prompt');
                 
                 // Compile to bytecode automatically
                 compileImageToBytecode(currentImage);
@@ -615,7 +622,7 @@ if (canvas && fileInput) {
 }
 
 // Control buttons
-const playButton = document.querySelector('button[title="Play"]');
+const playButton = document.querySelector('button[title="Debug"]');
 const stepButton = document.querySelector('button[title="Step"]');
 const runFastButton = document.getElementById('run-fast-btn');
 const resetButton = document.getElementById('reset-btn');
@@ -624,7 +631,7 @@ const resetButton = document.getElementById('reset-btn');
 if (resetButton) {
     resetButton.addEventListener('click', () => {
         if (!vm) {
-            logToTerminal('✗ No program loaded.', 'error');
+            logToTerminal('[ERROR] No program loaded.', 'error');
             return;
         }
         
@@ -639,7 +646,7 @@ if (resetButton) {
             highlightBytecodeRow(0);
             logToTerminal('🔄 VM reset to initial state', 'output');
         } catch (e) {
-            logToTerminal(`✗ Reset failed: ${e.message}`, 'error');
+            logToTerminal(`[ERROR] Reset failed: ${e.message}`, 'error');
         }
     });
 }
@@ -719,7 +726,7 @@ if (codelSizeSelect) {
             updateExecutionStats(0, 0);
             updatePositionDisplay(0, 0, 0);
             highlightBytecodeRow(0);
-            logToTerminal('✓ Recompilation complete. Ready to execute.', 'output');
+            logToTerminal('[OK] Recompilation complete. Ready to execute.', 'output');
         }
     });
 }
@@ -736,11 +743,11 @@ if (watchdogSelect) {
 if (runFastButton) {
     runFastButton.addEventListener('click', () => {
         if (!vm) {
-            logToTerminal('✗ No program loaded. Upload a Piet image first.', 'error');
+            logToTerminal('[ERROR] No program loaded. Upload a Piet image first.', 'error');
             return;
         }
         
-        logToTerminal('⚡ Running at native speed...', 'prompt');
+        logToTerminal('Running at native speed...', 'prompt');
         updateStatus('Running (native)', 'running');
         setRunningEffect(true);
         
@@ -826,15 +833,15 @@ if (runFastButton) {
                         
                         setRunningEffect(false);
                         updateStatus(`Completed in ${elapsed.toFixed(2)}ms`, 'halted');
-                        logToTerminal(`✓ Executed ${totalSteps.toLocaleString()} steps in ${elapsed.toFixed(2)}ms`, 'output');
+                        logToTerminal(`[OK] Executed ${totalSteps.toLocaleString()} steps in ${elapsed.toFixed(2)}ms`, 'output');
                         
                         // Show performance metrics
                         if (totalSteps > 0) {
                             const opsPerSec = (totalSteps / elapsed) * 1000;
                             if (opsPerSec >= 1000000) {
-                                logToTerminal(`⚡ Speed: ${(opsPerSec / 1000000).toFixed(2)}M operations/second`, 'output');
+                                logToTerminal(`Speed: ${(opsPerSec / 1000000).toFixed(2)}M operations/second`, 'output');
                             } else {
-                                logToTerminal(`⚡ Speed: ${(opsPerSec / 1000).toFixed(2)}K operations/second`, 'output');
+                                logToTerminal(`Speed: ${(opsPerSec / 1000).toFixed(2)}K operations/second`, 'output');
                             }
                         }
                         
@@ -860,7 +867,7 @@ if (runFastButton) {
             } catch (error) {
                 setRunningEffect(false);
                 updateStatus('Error', 'halted');
-                logToTerminal(`✗ Execution failed: ${error.message}`, 'error');
+                logToTerminal(`[ERROR] Execution failed: ${error.message}`, 'error');
                 console.error('Run error:', error);
             }
         }, 50); // Small delay to show effect
@@ -870,7 +877,7 @@ if (runFastButton) {
 if (playButton) {
     playButton.addEventListener('click', () => {
         if (!vm) {
-            logToTerminal('✗ No program loaded. Upload a Piet image first.', 'error');
+            logToTerminal('[ERROR] No program loaded. Upload a Piet image first.', 'error');
             return;
         }
         
@@ -916,7 +923,7 @@ if (playButton) {
                         setRunningEffect(false);
                         updateStatus(`Completed in ${step} steps`, 'halted');
                         updateExecutionStats(step, endTime - startTime);
-                        logToTerminal(`✓ Program completed in ${step} steps`, 'output');
+                        logToTerminal(`[OK] Program completed in ${step} steps`, 'output');
                         
                         // Reset VM for next run
                         vm.reset();
@@ -990,7 +997,7 @@ if (playButton) {
                             setRunningEffect(false);
                             updateStatus(`Completed in ${step} steps`, 'halted');
                             updateExecutionStats(step, endTime - startTime);
-                            logToTerminal(`✓ Program completed in ${step} steps`, 'output');
+                            logToTerminal(`[OK] Program completed in ${step} steps`, 'output');
                             
                             // Reset VM for next run
                             vm.reset();
@@ -1009,10 +1016,10 @@ if (playButton) {
                     if (errorMsg.includes('timeout') || errorMsg.includes('Watchdog')) {
                         updateStatus('Timeout', 'halted');
                         logToTerminal(`⏱️ Watchdog timeout: Program exceeded step limit`, 'error');
-                        logToTerminal(`💡 The program may have an infinite loop. Check for a proper HALT structure.`, 'output');
+                        logToTerminal(`The program may have an infinite loop. Check for a proper HALT structure.`, 'output');
                     } else {
                         updateStatus('Error', 'halted');
-                        logToTerminal(`✗ Runtime error: ${errorMsg}`, 'error');
+                        logToTerminal(`[ERROR] Runtime error: ${errorMsg}`, 'error');
                     }
                     console.error('Runtime error:', error);
                 }
@@ -1022,7 +1029,7 @@ if (playButton) {
         } catch (error) {
             setRunningEffect(false);
             updateStatus('Error', 'halted');
-            logToTerminal(`✗ Execution failed: ${error.message}`, 'error');
+            logToTerminal(`[ERROR] Execution failed: ${error.message}`, 'error');
             console.error('Execution error:', error);
         }
     });
@@ -1031,7 +1038,7 @@ if (playButton) {
 if (stepButton) {
     stepButton.addEventListener('click', () => {
         if (!vm || !program) {
-            logToTerminal('✗ No program loaded. Upload a Piet image first.', 'error');
+            logToTerminal('[ERROR] No program loaded. Upload a Piet image first.', 'error');
             return;
         }
         
@@ -1047,7 +1054,7 @@ if (stepButton) {
             }
             
             if (snapshot.halted) {
-                logToTerminal('✓ Program completed (HALT). Reset or upload new image to restart.', 'output');
+                logToTerminal('[OK] Program completed (HALT). Reset or upload new image to restart.', 'output');
                 highlightBytecodeRow(snapshot.instruction_index);
                 endDebugVisualization();
                 updateStatus('Halted', 'halted');
@@ -1127,7 +1134,7 @@ if (stepButton) {
             if (afterSnapshot.halted) {
                 endDebugVisualization();
                 updateStatus('Halted', 'halted');
-                logToTerminal('✓ Program completed (HALT)', 'output');
+                logToTerminal('[OK] Program completed (HALT)', 'output');
             }
         } catch (error) {
             // Check if it's just a halted state
@@ -1136,14 +1143,14 @@ if (stepButton) {
                 if (snapshot.halted) {
                     endDebugVisualization();
                     updateStatus('Halted', 'halted');
-                    logToTerminal('✓ Program completed (HALT)', 'output');
+                    logToTerminal('[OK] Program completed (HALT)', 'output');
                     return;
                 }
             } catch (e) {}
             
             endDebugVisualization();
             updateStatus('Error', 'halted');
-            logToTerminal(`✗ Step failed: ${error.message}`, 'error');
+            logToTerminal(`[ERROR] Step failed: ${error.message}`, 'error');
             console.error('Step error:', error);
         }
     });
@@ -1151,6 +1158,30 @@ if (stepButton) {
 
 // Initial messages
 logToTerminal('Canvas VM Ready', 'output');
-logToTerminal('Upload a Piet program (PNG/BMP) to begin', 'output');
+
+// Auto-load program from URL parameter if present
+if (programPath) {
+    logToTerminal(`Loading example: ${programPath}...`, 'output');
+    fetch(programPath)
+        .then(response => response.blob())
+        .then(blob => {
+            const file = new File([blob], programPath.split('/').pop(), { type: 'image/png' });
+            const dataTransfer = new DataTransfer();
+            dataTransfer.items.add(file);
+            fileInput.files = dataTransfer.files;
+            
+            // Trigger file load
+            const event = new Event('change', { bubbles: true });
+            fileInput.dispatchEvent(event);
+            
+            logToTerminal('Example loaded. Click Run or Debug to execute.', 'output');
+        })
+        .catch(error => {
+            logToTerminal(`Failed to load example: ${error.message}`, 'error');
+            logToTerminal('Upload a Piet program (PNG/BMP) to begin', 'output');
+        });
+} else {
+    logToTerminal('Upload a Piet program (PNG/BMP) to begin', 'output');
+}
 
 }); // End DOMContentLoaded

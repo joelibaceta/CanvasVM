@@ -4,9 +4,8 @@
 
 use canvas_vm::{Instruction, Program};
 use wasm_encoder::{
-    CodeSection, ExportKind, ExportSection, Function, FunctionSection,
-    ImportSection, Instruction as WasmInst, MemorySection, MemoryType,
-    Module, TypeSection, ValType,
+    CodeSection, ExportKind, ExportSection, Function, FunctionSection, ImportSection,
+    Instruction as WasmInst, MemorySection, MemoryType, Module, TypeSection, ValType,
 };
 
 /// Code generation error
@@ -48,7 +47,7 @@ pub struct CodegenOptions {
 impl Default for CodegenOptions {
     fn default() -> Self {
         Self {
-            memory_pages: 1,           // 64KB initial
+            memory_pages: 1,            // 64KB initial
             max_memory_pages: Some(16), // 1MB max
             export_stack_pointer: false,
             main_function_name: "main".to_string(),
@@ -83,13 +82,13 @@ impl WasmCodegen {
         // === Type Section ===
         // Define function signatures
         let mut types = TypeSection::new();
-        
+
         // Type 0: () -> () for main
         types.ty().function(vec![], vec![]);
-        
+
         // Type 1: () -> i32 for read_char, read_number
         types.ty().function(vec![], vec![ValType::I32]);
-        
+
         // Type 2: (i32) -> () for write_char, write_number
         types.ty().function(vec![ValType::I32], vec![]);
 
@@ -98,7 +97,7 @@ impl WasmCodegen {
         // === Import Section ===
         // Import I/O functions from host
         let mut imports = ImportSection::new();
-        
+
         // env.read_char: () -> i32
         imports.import("env", "read_char", wasm_encoder::EntityType::Function(1));
         // env.read_number: () -> i32
@@ -113,22 +112,22 @@ impl WasmCodegen {
         // === Function Section ===
         // Declare our functions (main + helpers)
         let mut functions = FunctionSection::new();
-        
+
         // Function 4 (after 4 imports): main
         functions.function(0); // Type 0: () -> ()
-        
+
         // Function 5: stack_push (helper)
         // Type: (i32) -> ()
         functions.function(2);
-        
+
         // Function 6: stack_pop (helper)
         // Type: () -> i32
         functions.function(1);
-        
+
         // Function 7: stack_peek (helper) - read top without popping
         // Type: () -> i32
         functions.function(1);
-        
+
         // Function 8: stack_size (helper)
         // Type: () -> i32
         functions.function(1);
@@ -150,10 +149,10 @@ impl WasmCodegen {
 
         // === Export Section ===
         let mut exports = ExportSection::new();
-        
+
         // Export main function
         exports.export(&self.options.main_function_name, ExportKind::Func, 4);
-        
+
         // Export memory for host inspection
         exports.export("memory", ExportKind::Memory, 0);
 
@@ -182,8 +181,8 @@ impl WasmCodegen {
         let mut func = Function::new(vec![]);
 
         // Initialize stack pointer at memory[0] = 4 (skip the SP itself)
-        func.instruction(&WasmInst::I32Const(0));  // address 0
-        func.instruction(&WasmInst::I32Const(4));  // initial SP value
+        func.instruction(&WasmInst::I32Const(0)); // address 0
+        func.instruction(&WasmInst::I32Const(4)); // initial SP value
         func.instruction(&WasmInst::I32Store(wasm_encoder::MemArg {
             offset: 0,
             align: 2,
@@ -246,8 +245,8 @@ impl WasmCodegen {
                 // a = pop(), b = pop(), push(b / a)
                 func.instruction(&WasmInst::Call(6)); // a (divisor)
                 func.instruction(&WasmInst::Call(6)); // b (dividend)
-                // Handle division by zero: if a == 0, return 0
-                // For simplicity, use signed division (Piet spec)
+                                                      // Handle division by zero: if a == 0, return 0
+                                                      // For simplicity, use signed division (Piet spec)
                 func.instruction(&WasmInst::I32DivS);
                 func.instruction(&WasmInst::Call(5)); // push result
             }
@@ -318,7 +317,7 @@ impl WasmCodegen {
                 // In the linear bytecode, they become NOPs
                 // (control flow was determined during compilation)
                 func.instruction(&WasmInst::Call(6)); // pop the argument
-                func.instruction(&WasmInst::Drop);    // discard it
+                func.instruction(&WasmInst::Drop); // discard it
             }
 
             Instruction::Nop => {
@@ -339,16 +338,16 @@ impl WasmCodegen {
     fn emit_roll(&self, func: &mut Function) -> Result<(), CodegenError> {
         // Roll is the most complex Piet operation
         // For MVP, we implement a simple version using memory operations
-        
+
         // Pop times and depth
         func.instruction(&WasmInst::Call(6)); // times
-        func.instruction(&WasmInst::Drop);    // TODO: implement proper roll
+        func.instruction(&WasmInst::Drop); // TODO: implement proper roll
         func.instruction(&WasmInst::Call(6)); // depth
-        func.instruction(&WasmInst::Drop);    // TODO: implement proper roll
-        
+        func.instruction(&WasmInst::Drop); // TODO: implement proper roll
+
         // TODO: Implement full roll semantics
         // This requires manipulating the stack in memory
-        
+
         Ok(())
     }
 
@@ -357,34 +356,42 @@ impl WasmCodegen {
         // Stack layout in memory:
         // [0..4]: Stack pointer (points to next free slot)
         // [4..]: Stack data
-        
+
         let mut func = Function::new(vec![(1, ValType::I32)]); // 1 local for value param
-        
+
         // Get current SP
         func.instruction(&WasmInst::I32Const(0));
         func.instruction(&WasmInst::I32Load(wasm_encoder::MemArg {
-            offset: 0, align: 2, memory_index: 0,
+            offset: 0,
+            align: 2,
+            memory_index: 0,
         }));
-        
+
         // Store value at SP
         // local.get 0 (the parameter is the value)
         func.instruction(&WasmInst::LocalGet(0));
         func.instruction(&WasmInst::I32Store(wasm_encoder::MemArg {
-            offset: 0, align: 2, memory_index: 0,
+            offset: 0,
+            align: 2,
+            memory_index: 0,
         }));
-        
+
         // Increment SP by 4
         func.instruction(&WasmInst::I32Const(0));
         func.instruction(&WasmInst::I32Const(0));
         func.instruction(&WasmInst::I32Load(wasm_encoder::MemArg {
-            offset: 0, align: 2, memory_index: 0,
+            offset: 0,
+            align: 2,
+            memory_index: 0,
         }));
         func.instruction(&WasmInst::I32Const(4));
         func.instruction(&WasmInst::I32Add);
         func.instruction(&WasmInst::I32Store(wasm_encoder::MemArg {
-            offset: 0, align: 2, memory_index: 0,
+            offset: 0,
+            align: 2,
+            memory_index: 0,
         }));
-        
+
         func.instruction(&WasmInst::End);
         func
     }
@@ -392,28 +399,36 @@ impl WasmCodegen {
     /// Generate stack_pop helper: () -> i32
     fn generate_stack_pop(&self) -> Function {
         let mut func = Function::new(vec![]);
-        
+
         // Decrement SP by 4
         func.instruction(&WasmInst::I32Const(0));
         func.instruction(&WasmInst::I32Const(0));
         func.instruction(&WasmInst::I32Load(wasm_encoder::MemArg {
-            offset: 0, align: 2, memory_index: 0,
+            offset: 0,
+            align: 2,
+            memory_index: 0,
         }));
         func.instruction(&WasmInst::I32Const(4));
         func.instruction(&WasmInst::I32Sub);
         func.instruction(&WasmInst::I32Store(wasm_encoder::MemArg {
-            offset: 0, align: 2, memory_index: 0,
+            offset: 0,
+            align: 2,
+            memory_index: 0,
         }));
-        
+
         // Load value from new SP
         func.instruction(&WasmInst::I32Const(0));
         func.instruction(&WasmInst::I32Load(wasm_encoder::MemArg {
-            offset: 0, align: 2, memory_index: 0,
+            offset: 0,
+            align: 2,
+            memory_index: 0,
         }));
         func.instruction(&WasmInst::I32Load(wasm_encoder::MemArg {
-            offset: 0, align: 2, memory_index: 0,
+            offset: 0,
+            align: 2,
+            memory_index: 0,
         }));
-        
+
         func.instruction(&WasmInst::End);
         func
     }
@@ -421,18 +436,22 @@ impl WasmCodegen {
     /// Generate stack_peek helper: () -> i32 (read top without popping)
     fn generate_stack_peek(&self) -> Function {
         let mut func = Function::new(vec![]);
-        
+
         // Load value at SP - 4 (top of stack)
         func.instruction(&WasmInst::I32Const(0));
         func.instruction(&WasmInst::I32Load(wasm_encoder::MemArg {
-            offset: 0, align: 2, memory_index: 0,
+            offset: 0,
+            align: 2,
+            memory_index: 0,
         }));
         func.instruction(&WasmInst::I32Const(4));
         func.instruction(&WasmInst::I32Sub);
         func.instruction(&WasmInst::I32Load(wasm_encoder::MemArg {
-            offset: 0, align: 2, memory_index: 0,
+            offset: 0,
+            align: 2,
+            memory_index: 0,
         }));
-        
+
         func.instruction(&WasmInst::End);
         func
     }
@@ -440,17 +459,19 @@ impl WasmCodegen {
     /// Generate stack_size helper: () -> i32
     fn generate_stack_size(&self) -> Function {
         let mut func = Function::new(vec![]);
-        
+
         // (SP - 4) / 4 = number of elements
         func.instruction(&WasmInst::I32Const(0));
         func.instruction(&WasmInst::I32Load(wasm_encoder::MemArg {
-            offset: 0, align: 2, memory_index: 0,
+            offset: 0,
+            align: 2,
+            memory_index: 0,
         }));
         func.instruction(&WasmInst::I32Const(4));
         func.instruction(&WasmInst::I32Sub);
         func.instruction(&WasmInst::I32Const(4));
         func.instruction(&WasmInst::I32DivU);
-        
+
         func.instruction(&WasmInst::End);
         func
     }

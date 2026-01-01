@@ -1,7 +1,8 @@
 use crate::error::VmError;
+use serde::{Deserialize, Serialize};
 
 /// The 20 colors of the Piet language: 18 chromatic + white + black
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum PietColor {
     // Hue 0: Red
     LightRed,
@@ -42,47 +43,47 @@ impl PietColor {
             (0xFF, 0x00, 0x00) => Ok(PietColor::Red),
             // Dark Red
             (0xC0, 0x00, 0x00) => Ok(PietColor::DarkRed),
-            
+
             // Light Yellow
             (0xFF, 0xFF, 0xC0) => Ok(PietColor::LightYellow),
             // Yellow
             (0xFF, 0xFF, 0x00) => Ok(PietColor::Yellow),
             // Dark Yellow
             (0xC0, 0xC0, 0x00) => Ok(PietColor::DarkYellow),
-            
+
             // Light Green
             (0xC0, 0xFF, 0xC0) => Ok(PietColor::LightGreen),
             // Green
             (0x00, 0xFF, 0x00) => Ok(PietColor::Green),
             // Dark Green
             (0x00, 0xC0, 0x00) => Ok(PietColor::DarkGreen),
-            
+
             // Light Cyan
             (0xC0, 0xFF, 0xFF) => Ok(PietColor::LightCyan),
             // Cyan
             (0x00, 0xFF, 0xFF) => Ok(PietColor::Cyan),
             // Dark Cyan
             (0x00, 0xC0, 0xC0) => Ok(PietColor::DarkCyan),
-            
+
             // Light Blue
             (0xC0, 0xC0, 0xFF) => Ok(PietColor::LightBlue),
             // Blue
             (0x00, 0x00, 0xFF) => Ok(PietColor::Blue),
             // Dark Blue
             (0x00, 0x00, 0xC0) => Ok(PietColor::DarkBlue),
-            
+
             // Light Magenta
             (0xFF, 0xC0, 0xFF) => Ok(PietColor::LightMagenta),
             // Magenta
             (0xFF, 0x00, 0xFF) => Ok(PietColor::Magenta),
             // Dark Magenta
             (0xC0, 0x00, 0xC0) => Ok(PietColor::DarkMagenta),
-            
+
             // White
             (0xFF, 0xFF, 0xFF) => Ok(PietColor::White),
             // Black
             (0x00, 0x00, 0x00) => Ok(PietColor::Black),
-            
+
             // Any other color is treated as black (blocked)
             // This allows handling non-standard colors in Piet images
             _ => Ok(PietColor::Black),
@@ -105,15 +106,27 @@ impl PietColor {
     /// Gets the lightness of the color (0=light, 1=normal, 2=dark), None for white/black
     pub fn lightness(&self) -> Option<u8> {
         match self {
-            PietColor::LightRed | PietColor::LightYellow | PietColor::LightGreen |
-            PietColor::LightCyan | PietColor::LightBlue | PietColor::LightMagenta => Some(0),
-            
-            PietColor::Red | PietColor::Yellow | PietColor::Green |
-            PietColor::Cyan | PietColor::Blue | PietColor::Magenta => Some(1),
-            
-            PietColor::DarkRed | PietColor::DarkYellow | PietColor::DarkGreen |
-            PietColor::DarkCyan | PietColor::DarkBlue | PietColor::DarkMagenta => Some(2),
-            
+            PietColor::LightRed
+            | PietColor::LightYellow
+            | PietColor::LightGreen
+            | PietColor::LightCyan
+            | PietColor::LightBlue
+            | PietColor::LightMagenta => Some(0),
+
+            PietColor::Red
+            | PietColor::Yellow
+            | PietColor::Green
+            | PietColor::Cyan
+            | PietColor::Blue
+            | PietColor::Magenta => Some(1),
+
+            PietColor::DarkRed
+            | PietColor::DarkYellow
+            | PietColor::DarkGreen
+            | PietColor::DarkCyan
+            | PietColor::DarkBlue
+            | PietColor::DarkMagenta => Some(2),
+
             PietColor::White | PietColor::Black => None,
         }
     }
@@ -141,12 +154,12 @@ impl PietColor {
 /// | 5 Steps   | in(char)| out(num)| out(char)  |
 pub fn get_operation(hue_change: i8, lightness_change: i8) -> Option<Operation> {
     // Normalize changes to [0, 5] for hue and [0, 2] for lightness
-    let hue = ((hue_change % 6 + 6) % 6) as u8;
-    let light = ((lightness_change % 3 + 3) % 3) as u8;
-    
+    let hue = hue_change.rem_euclid(6) as u8;
+    let light = lightness_change.rem_euclid(3) as u8;
+
     match (hue, light) {
         // No hue change
-        (0, 0) => None,                      // No change = no operation
+        (0, 0) => None, // No change = no operation
         (0, 1) => Some(Operation::Push),
         (0, 2) => Some(Operation::Pop),
         // 1 hue step
@@ -225,11 +238,26 @@ mod tests {
 
     #[test]
     fn test_color_from_rgb() {
-        assert_eq!(PietColor::from_rgb(0xFF, 0x00, 0x00).unwrap(), PietColor::Red);
-        assert_eq!(PietColor::from_rgb(0xFF, 0xFF, 0x00).unwrap(), PietColor::Yellow);
-        assert_eq!(PietColor::from_rgb(0x00, 0x00, 0xFF).unwrap(), PietColor::Blue);
-        assert_eq!(PietColor::from_rgb(0xFF, 0xFF, 0xFF).unwrap(), PietColor::White);
-        assert_eq!(PietColor::from_rgb(0x00, 0x00, 0x00).unwrap(), PietColor::Black);
+        assert_eq!(
+            PietColor::from_rgb(0xFF, 0x00, 0x00).unwrap(),
+            PietColor::Red
+        );
+        assert_eq!(
+            PietColor::from_rgb(0xFF, 0xFF, 0x00).unwrap(),
+            PietColor::Yellow
+        );
+        assert_eq!(
+            PietColor::from_rgb(0x00, 0x00, 0xFF).unwrap(),
+            PietColor::Blue
+        );
+        assert_eq!(
+            PietColor::from_rgb(0xFF, 0xFF, 0xFF).unwrap(),
+            PietColor::White
+        );
+        assert_eq!(
+            PietColor::from_rgb(0x00, 0x00, 0x00).unwrap(),
+            PietColor::Black
+        );
     }
 
     #[test]

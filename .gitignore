@@ -21,4 +21,10 @@ node_modules/
 # Debug files
 *.log
 
+# Generated/compiled files
+*.cvm
+*.wasm
+*.ppm
+
+# OS
 .DS_Store
