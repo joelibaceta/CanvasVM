@@ -173,8 +173,7 @@ if [[ ":$PATH:" != *":$INSTALL_DIR:"* ]]; then
         echo "export PATH=\"\$HOME/.local/bin:\$PATH\"" >> "$SHELL_CONFIG"
         echo -e "${GREEN}[OK]${RESET} Added $INSTALL_DIR to PATH in $SHELL_CONFIG"
         echo ""
-        echo -e "${YELLOW}[ACTION]${RESET} Run this to use Canvas VM now:"
-        echo "   source $SHELL_CONFIG"
+        echo -e "${YELLOW}[NOTE]${RESET} Open a new terminal or run: ${BOLD}source $SHELL_CONFIG${RESET}"
     fi
     echo ""
 else

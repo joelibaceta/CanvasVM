@@ -1,8 +1,8 @@
 <div align="center">
   <img src="docs/images/LogoLarge.png" alt="Canvas VM" width="400">
-  
-  <p>A high-performance Piet language runtime with visual debugging capabilities, built in Rust with WebAssembly support.</p>
-  
+  <br/>
+  <p>A serious virtual machine and JIT compiler for the Piet esoteric programming language. Transform images into executable code with bytecode compilation, WebAssembly JIT, and debugging support.</p>
+
   <p>
     <img src="https://img.shields.io/badge/Piet-Runtime-blue" alt="Piet Runtime">
     <img src="https://img.shields.io/badge/Rust-1.70+-orange" alt="Rust">
